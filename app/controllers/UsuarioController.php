@@ -58,25 +58,14 @@ class UsuarioController implements IApiUsable
     $usuario = $data['usuario'];
     $clave = $data['clave'];
 
-    // {
-      // validar idUsuarioTipo
-      // validar idArea
-      // validar nombre usuario
-      // hashear clave
-
-      // $listaUsuarioTipo = UsuarioTipo::all();
-      // $payloadUsuarioTipo = json_encode(array("listaUsuarioTipo" => $listaUsuarioTipo));
-      // var_dump($payloadUsuarioTipo);
-    // }
-
     $usr = new Usuario();
     $usr->idUsuarioTipo = $idUsuarioTipo;
     $usr->idArea = $idArea;
     $usr->usuario = $usuario;
     $usr->clave = $clave;
-    // $usr->save();
+    $usr->save();
 
-    // $payload = json_encode(array("mensaje" => "Usuario creado con exito"));
+    $payload = json_encode(array("mensaje" => "Usuario creado con exito"));
     $response->getBody()->write($payload);
     return $response
       ->withHeader('Content-Type', 'application/json');

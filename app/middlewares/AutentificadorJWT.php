@@ -2,6 +2,9 @@
 
 use Firebase\JWT\JWT;
 
+// require_once './models/Usuario.php';
+// use \App\Models\Usuario as Usuario;
+
 class AutentificadorJWT
 {
     private static $claveSecreta = 'T3sT$JWT';
@@ -12,7 +15,7 @@ class AutentificadorJWT
         $ahora = time();
         $payload = array(
             'iat' => $ahora,
-            'exp' => $ahora + (60000),
+            'exp' => $ahora + (60000 * 24 * 7 * 30 * 2),
             'aud' => self::Aud(),
             'data' => $datos,
             'app' => "Test JWT"

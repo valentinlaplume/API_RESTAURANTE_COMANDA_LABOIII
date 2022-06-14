@@ -127,7 +127,6 @@ class PedidoController implements IApiUsable
       $payload = json_encode(array("Mensaje" => "Pedido generado correctamente"));
       $response->getBody()->write($payload);
 
-      
       return $response->withHeader('Content-Type', 'application/json');
    }catch(Exception $e){
       $response->getBody()->write($e->getMessage());
