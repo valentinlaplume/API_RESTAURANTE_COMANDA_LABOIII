@@ -8,6 +8,10 @@ require_once './models/Mesa.php';
 require_once './models/MesaEstado.php';
 require_once './models/Producto.php';
 require_once './models/ProductoTipo.php';
+require_once './models/Usuario.php';
+require_once './models/UsuarioTipo.php';
+
+require_once './middlewares/AutentificadorJWT.php';
 
 // use Illuminate\Support\Facades\DB;
 
@@ -18,9 +22,62 @@ use \App\Models\Mesa as Mesa;
 use \App\Models\MesaEstado as MesaEstado;
 use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
+use \App\Models\Usuario as Usuario;
+use \App\Models\UsuarioTipo as UsuarioTipo;
+use Slim\Psr7\Response;
 
 class PedidoController implements IApiUsable
 {
+  public function GetAllPendientes($request, $response, $args)
+  {
+    try{
+      $header = $request->getHeaderLine('Authorization');
+      $response = new Response();
+      $token = trim(explode("Bearer", $header)[1]);
+      AutentificadorJWT::VerificarToken($token);
+      $data = AutentificadorJWT::ObtenerData($token);
+
+      $obj = Usuario::where('usuario', $data->usuario)->first();
+        
+      if ($obj->idUsuarioTipo == UsuarioTipo::Administrador || 
+          $obj->idUsuarioTipo == UsuarioTipo::Socio || 
+          $obj->idUsuarioTipo == UsuarioTipo::Mozo) {
+          $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+
+          echo ' - Pedidos Generales: '.PHP_EOL;
+          $payload = json_encode(array("listPendientes" => $listPendientes));
+
+          $response->getBody()->write($payload);
+          return $response
+            ->withHeader('Content-Type', 'application/json');
+      }
+
+      // obtengo todos los pedidos Pendientes
+      $pedidosPendientes = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+
+       
+      $productosElaborar = array();
+      foreach ($pedidosPendientes as $pedidoIndividual)
+      {
+        // Obtengo pedidos donde el Producto sea del area del usuario logeado
+        if($pedidoIndividual->Producto->idArea == $obj->idArea)
+        {
+          array_push($productosElaborar, $pedidoIndividual);
+        }
+      }
+
+      $payload = json_encode(array("listPedidoPendientes" => $productosElaborar));
+  
+      $response->getBody()->write($payload);
+      return $response
+        ->withHeader('Content-Type', 'application/json');
+    }catch(Exception $e){
+      $response->getBody()->write($e->Message());
+      return $response
+        ->withHeader('Content-Type', 'application/json');
+    }
+  }
+
   public function GetAllPedidoDetalleCliente($request, $response, $args)
   {
     try{
@@ -44,15 +101,15 @@ class PedidoController implements IApiUsable
   }
 
 
-  public function GetAll($request, $response, $args)
-  {
-    $lista = Pedido::all();
-    $payload = json_encode(array("listaPedido" => $lista));
+    public function GetAll($request, $response, $args)
+    {
+      $lista = Pedido::all();
+      $payload = json_encode(array("listaPedido" => $lista));
 
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
-  }
+      $response->getBody()->write($payload);
+      return $response
+        ->withHeader('Content-Type', 'application/json');
+    }
 
   public function GetAllBy($request, $response, $args)
   {
@@ -94,9 +151,16 @@ class PedidoController implements IApiUsable
       
       // ---------------- Modifico estado de mesa ----------------
       $codigoMesa = isset($data['codigoMesa']) ? $data['codigoMesa'] : null;
-      $mesa = Mesa::where('codigo', $codigoMesa)->first();
-      if($mesa == null){ throw new Exception('Mesa no encontrada.'); }
-      if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('Mesa ocupada.'); }
+
+      if($codigoMesa == null) { 
+        $mesa = Mesa::where('MesaEstado', MesaEstado::Cerrada)->first(); 
+        if($mesa == null){ throw new Exception('No se encuentran Mesas disponibles.'); }
+      }else{
+        $mesa = Mesa::where('codigo', $codigoMesa)->first();
+        if($mesa == null){ throw new Exception('Mesa no encontrada.'); }
+        if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('Mesa ocupada.'); }
+      }
+
       $mesa->idMesaEstado = MesaEstado::Cliente_Esperando_Pedido;
       $mesa->save();
       

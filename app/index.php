@@ -11,6 +11,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 require __DIR__ . '/../vendor/autoload.php';
 require_once './middlewares/AutentificadorJWT.php';
 require_once './middlewares/Acceso.php';
+require_once './middlewares/Logger.php';
 
 require_once './controllers/UsuarioController.php';
 require_once './controllers/UsuarioTipoController.php';
@@ -19,6 +20,7 @@ require_once './controllers/MesaController.php';
 require_once './controllers/MesaEstadoController.php';
 require_once './controllers/ProductoController.php';
 require_once './controllers/PedidoController.php';
+require_once './controllers/LoginController.php';
 
 date_default_timezone_set('America/Argentina/Buenos_Aires');
 
@@ -52,6 +54,10 @@ $capsule->addConnection([
 ]);
 $capsule->setAsGlobal();
 $capsule->bootEloquent();
+
+$app->group('/login', function (RouteCollectorProxy $group) {
+  $group->post('[/]', \LoginController::class . ':AccesApp'); 
+})->add(\Logger::class . ':RegistrarLoginUsuario');
 
 
 // JWT test routes
@@ -127,7 +133,7 @@ $app->group('/jwt', function (RouteCollectorProxy $group) {
         ->withHeader('Content-Type', 'application/json');
     })->add(\Acceso::class . ':isUsuario');
 });
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
 
 $app->get('[/]', function (Request $request, Response $response) {    
     $response->getBody()->write("TP COMANDA - LABO III - VALENTIN LAPLUME");
@@ -135,41 +141,35 @@ $app->get('[/]', function (Request $request, Response $response) {
 });
 
 $app->group('/usuarios', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \UsuarioController::class . ':GetAll');
-    $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy'); 
-    $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy'); 
-    $group->post('[/]', \UsuarioController::class . ':Save');
-    $group->put('/{id}', \UsuarioController::class . ':Update');
-    $group->delete('/{id}', \UsuarioController::class . ':Delete');
-})
-->add(\Acceso::class . ':isAdmin');
+    $group->get('[/]', \UsuarioController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio'); 
+    $group->post('[/]', \UsuarioController::class . ':Save')->add(\Acceso::class . ':isAdmin');
+    $group->put('/{id}', \UsuarioController::class . ':Update')->add(\Acceso::class . ':isAdmin');
+    $group->delete('/{id}', \UsuarioController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
+});
 
 $app->group('/usuarioTipos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \UsuarioTipoController::class . ':GetAll');
     $group->get('/{field}/{value}', \UsuarioTipoController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \UsuarioTipoController::class . ':GetFirstBy'); 
-    // $group->post('[/]', \UsuarioTipoController::class . ':Save');
-    // $group->put('/{id}', \UsuarioTipoController::class . ':Update');
-    // $group->delete('/{id}', \UsuarioTipoController::class . ':Delete');
 });
 
 $app->group('/areas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \AreaController::class . ':GetAll');
     $group->get('/{field}/{value}', \AreaController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \AreaController::class . ':GetFirstBy'); 
-    // $group->post('[/]', \AreaController::class . ':Save');
-    // $group->put('/{id}', \AreaController::class . ':Update');
-    // $group->delete('/{id}', \AreaController::class . ':Delete');
 });
 
 $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \MesaController::class . ':GetAll');
     $group->get('/{field}/{value}', \MesaController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \MesaController::class . ':GetFirstBy'); 
-    $group->post('[/]', \MesaController::class . ':Save');
-    $group->put('/{id}', \MesaController::class . ':Update');
-    $group->delete('/{id}', \MesaController::class . ':Delete');
+    $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
+    $group->put('/{id}', \MesaController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
+    $group->delete('/{id}', \MesaController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
 });
+
 
 $app->group('/mesaEstados', function (RouteCollectorProxy $group) {
     $group->get('[/]', \MesaEstadoController::class . ':GetAll');
@@ -184,19 +184,26 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \ProductoController::class . ':GetAll');
     $group->get('/{field}/{value}', \ProductoController::class . ':GetAllBy');
     $group->get('/first/{field}/{value}', \ProductoController::class . ':GetFirstBy'); 
-    $group->post('[/]', \ProductoController::class . ':Save');
-    $group->put('/{id}', \ProductoController::class . ':Update');
-    $group->delete('/{id}', \ProductoController::class . ':Delete');
+    $group->post('[/]', \ProductoController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
+    $group->put('/{id}', \ProductoController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
+    $group->delete('/{id}', \ProductoController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
 });
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
-    $group->get('/seguimiento/{codigoPedido}/{codigoMesa}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
-    $group->get('[/]', \PedidoController::class . ':GetAll');
-    $group->get('/{field}/{value}', \PedidoController::class . ':GetAllBy');
-    $group->get('/first/{field}/{value}', \PedidoController::class . ':GetFirstBy'); 
-    $group->post('[/]', \PedidoController::class . ':Save');
-    $group->put('/{id}', \PedidoController::class . ':Update');
-    $group->delete('/{id}', \PedidoController::class . ':Delete');
+  $group->get('[/]', \PedidoController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
+  $group->get('/{field}/{value}', \PedidoController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
+  $group->get('/first/{field}/{value}', \PedidoController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio');
+  
+  // Seguimiento 
+  $group->get('/seguimiento/{codigoPedido}/{codigoMesa}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
+
+  // ABM
+  $group->post('[/]', \PedidoController::class . ':Save')->add(\Acceso::class . ':isMozo');
+  $group->put('/{id}', \PedidoController::class . ':Update')->add(\Acceso::class . ':isMozo');
+  $group->delete('/{id}', \PedidoController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
+
+  // Pedidos pendientes filtro
+  $group->get('/pendientes', \PedidoController::class . ':GetAllPendientes')->add(\Acceso::class . ':isUsuario');
 });
 
 

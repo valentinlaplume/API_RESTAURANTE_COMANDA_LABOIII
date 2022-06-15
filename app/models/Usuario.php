@@ -35,4 +35,9 @@ class Usuario extends Model
         return $this->belongsTo(Area::class, 'idArea');
     }
 
+    public function PrintUsuario()
+    {
+        echo ' > USUARIO: ' . $this->usuario . PHP_EOL .' > TIPO: ' . $this->UsuarioTipo->tipo . PHP_EOL;
+    }
+
 }

@@ -25,23 +25,23 @@ class AutentificadorJWT
 
     public static function VerificarToken($token)
     {
-        if (empty($token)) {
-            throw new Exception("El token esta vacio.");
-        }
-        try {
+        if (empty($token)) { throw new Exception("El token esta vacio"); }
+        
+        try 
+        {
             $decodificado = JWT::decode(
-                $token,
-                self::$claveSecreta,
-                self::$tipoEncriptacion
+                    $token,
+                    self::$claveSecreta,
+                    self::$tipoEncriptacion
             );
         } catch (Exception $e) {
             throw $e;
         }
-        if ($decodificado->aud !== self::Aud()) {
-            throw new Exception("No es el usuario valido");
+
+        if ($decodificado->aud !== self::Aud()) { 
+            throw new Exception("No es el usuario valido"); 
         }
     }
-
 
     public static function ObtenerPayLoad($token)
     {
