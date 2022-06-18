@@ -24,6 +24,13 @@ class Usuario extends Model
         'estado', 
         'fechaAlta', 'fechaModificacion', 'fechaBaja'
     ];
+    
+    static public function ExisteUsuario($nombreUsuario)
+    {
+      if(Usuario::where('usuario', '=', $nombreUsuario)->first() != null) { return true; }
+
+      return false;
+    }
 
     public function UsuarioTipo()
     {
@@ -37,7 +44,15 @@ class Usuario extends Model
 
     public function PrintUsuario()
     {
-        echo ' > USUARIO: ' . $this->usuario . PHP_EOL .' > TIPO: ' . $this->UsuarioTipo->tipo . PHP_EOL;
+        echo '-------------------------';
+        echo PHP_EOL;
+        echo 'USUARIO: '. $this->usuario;
+        echo PHP_EOL;
+        echo 'TIPO: '. $this->UsuarioTipo->tipo;
+        echo PHP_EOL;
+        echo '-------------------------';
+        echo PHP_EOL;
+        echo PHP_EOL;
     }
 
 }

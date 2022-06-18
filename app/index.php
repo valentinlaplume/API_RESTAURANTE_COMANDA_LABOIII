@@ -11,7 +11,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 require __DIR__ . '/../vendor/autoload.php';
 require_once './middlewares/AutentificadorJWT.php';
 require_once './middlewares/Acceso.php';
-require_once './middlewares/Logger.php';
+require_once './middlewares/Util.php';
 
 require_once './controllers/UsuarioController.php';
 require_once './controllers/UsuarioTipoController.php';
@@ -55,99 +55,27 @@ $capsule->addConnection([
 $capsule->setAsGlobal();
 $capsule->bootEloquent();
 
-$app->group('/login', function (RouteCollectorProxy $group) {
-  $group->post('[/]', \LoginController::class . ':AccesApp'); 
-})->add(\Logger::class . ':RegistrarLoginUsuario');
-
-
-// JWT test routes
-$app->group('/jwt', function (RouteCollectorProxy $group) {
-
-    $group->post('/crearToken', function (Request $request, Response $response) {    
-        try{
-            $parametros = $request->getParsedBody();
-            $usuario = $parametros['usuario'];
-            $clave = $parametros['clave'];
-            
-            $datos = array('usuario' => $usuario, 'clave' => $clave);
-        
-            $token = AutentificadorJWT::CrearToken($datos);
-            $payload = json_encode(array('jwt' => $token));
-            
-            $response->getBody()->write($payload);
-            return $response
-            ->withHeader('Content-Type', 'application/json');
-        }catch (Exception $e) {
-            $payload = json_encode(array('error' => $e->getMessage()));
-        }
-    });
-  
-    $group->get('/devolverPayLoad', function (Request $request, Response $response) {
-      $header = $request->getHeaderLine('Authorization');
-      $token = trim(explode("Bearer", $header)[1]);
-  
-      try {
-        $payload = json_encode(array('payload' => AutentificadorJWT::ObtenerPayLoad($token)));
-      } catch (Exception $e) {
-        $payload = json_encode(array('error' => $e->getMessage()));
-      }
-  
-      $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
-    })->add(\Acceso::class . ':isUsuario');
-  
-    $group->get('/devolverDatos', function (Request $request, Response $response) {
-      $header = $request->getHeaderLine('Authorization');
-      $token = trim(explode("Bearer", $header)[1]);
-  
-      try {
-        $payload = json_encode(array('datos' => AutentificadorJWT::ObtenerData($token)));
-      }catch (Exception $e) {
-        $payload = json_encode(array('error' => $e->getMessage()));
-      }
-  
-      $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
-    })->add(\Acceso::class . ':isUsuario');
-  
-    $group->get('/verificarToken', function (Request $request, Response $response) {
-      $header = $request->getHeaderLine('Authorization');
-      $token = trim(explode("Bearer", $header)[1]);
-      $esValido = false;
-  
-      try {
-        AutentificadorJWT::VerificarToken($token);
-        $esValido = true;
-      } catch (Exception $e) {
-        $payload = json_encode(array('error' => $e->getMessage()));
-      }
-  
-      if ($esValido) {
-        $payload = json_encode(array('valid' => $esValido));
-      }
-  
-      $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
-    })->add(\Acceso::class . ':isUsuario');
-});
-////////////////////////////////////////////////////////////////////////////////////////////
-
 $app->get('[/]', function (Request $request, Response $response) {    
-    $response->getBody()->write("TP COMANDA - LABO III - VALENTIN LAPLUME");
+    $response->getBody()->write("TRABAJO PRÁCTIVO - API COMANDA - LABO III");
     return $response;
 });
 
+$app->group('/login', function (RouteCollectorProxy $group) {
+  $group->post('[/]', \LoginController::class . ':AccesApp'); 
+})->add(\Util::class . ':RegistrarAccionUsuario');
+
+
 $app->group('/usuarios', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \UsuarioController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
-    $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
-    $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio'); 
-    $group->post('[/]', \UsuarioController::class . ':Save')->add(\Acceso::class . ':isAdmin');
-    $group->put('/{id}', \UsuarioController::class . ':Update')->add(\Acceso::class . ':isAdmin');
-    $group->delete('/{id}', \UsuarioController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
-});
+  $group->get('[/]', \UsuarioController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
+  $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
+  $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio'); 
+  $group->post('[/]', \UsuarioController::class . ':Save')->add(\Acceso::class . ':isAdmin');
+  $group->put('/{id}', \UsuarioController::class . ':Update')->add(\Acceso::class . ':isAdmin');
+  $group->delete('/{id}', \UsuarioController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
+
+  // ACCIONES USUARIOS
+  $group->get('/acciones', \UsuarioController::class . ':GetAllUsuarioAccion')->add(\Acceso::class . ':isAdminOSocio');
+})->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/usuarioTipos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \UsuarioTipoController::class . ':GetAll');
@@ -159,7 +87,7 @@ $app->group('/areas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \AreaController::class . ':GetAll');
     $group->get('/{field}/{value}', \AreaController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \AreaController::class . ':GetFirstBy'); 
-});
+})->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \MesaController::class . ':GetAll');
@@ -168,7 +96,7 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
     $group->put('/{id}', \MesaController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
     $group->delete('/{id}', \MesaController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
-});
+})->add(\Util::class . ':RegistrarAccionUsuario');
 
 
 $app->group('/mesaEstados', function (RouteCollectorProxy $group) {
@@ -187,14 +115,14 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
     $group->post('[/]', \ProductoController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
     $group->put('/{id}', \ProductoController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
     $group->delete('/{id}', \ProductoController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
-});
+})->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
   $group->get('[/]', \PedidoController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
   $group->get('/{field}/{value}', \PedidoController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
   $group->get('/first/{field}/{value}', \PedidoController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio');
   
-  // Seguimiento 
+  // Seguimiento Pedido
   $group->get('/seguimiento/{codigoPedido}/{codigoMesa}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
 
   // ABM
@@ -204,7 +132,7 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 
   // Pedidos pendientes filtro
   $group->get('/pendientes', \PedidoController::class . ':GetAllPendientes')->add(\Acceso::class . ':isUsuario');
-});
+})->add(\Util::class . ':RegistrarAccionUsuario');
 
 
 $app->run();

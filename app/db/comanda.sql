@@ -146,7 +146,12 @@ CREATE TABLE `mesa` (
   FOREIGN KEY `FK_mesa_mesaEstado` (`idMesaEstado`) REFERENCES `mesaEstado` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_spanish2_ci;
 
--- INSERT INTO `mesa` (`id`, `codigo`, `idEstadoMesa`, `descripcion`) VALUES
+INSERT INTO `mesa` (`id`, `codigo`, `idMesaEstado`, `descripcion`, `fechaAlta`) VALUES
+(1, '0JBaE', 4, 'Mesa junto al ventanal, con vista a la calle', '2022-06-12 18:20:31'),
+(2, 'lLIKY', 4, 'Mesa junto al baño al Candy Bar', '2022-06-12 18:20:31'),
+(3, 'NvxMm', 4, 'Mesa junto a la barra,', '2022-06-12 18:20:31'),
+(4, '1Io77', 4, 'Mesa especial cumpleaños, aislada con espacios para movilidad cómoda', '2022-06-12 18:20:31'),
+(5, '6qX07', 1, 'Mesa en esquina, lugar oscuro, con intimidad', '2022-06-12 18:20:31');
 
 ALTER TABLE `mesa`
   ADD PRIMARY KEY (`id`);
@@ -301,6 +306,64 @@ ALTER TABLE `pedidoDetalle`
   ADD PRIMARY KEY (`id`);
 
 ALTER TABLE `pedidoDetalle`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+COMMIT;
+
+----------------------------------------------------------------------
+DROP TABLE IF EXISTS `UsuarioAccionTipo`;
+
+CREATE TABLE `UsuarioAccionTipo` (
+  `id` int(11) NOT NULL,
+  `tipo` varchar(50) COLLATE utf8_spanish2_ci NOT NULL,
+  `fechaAlta` date NOT NULL,
+  `fechaModificacion` date DEFAULT NULL,
+  `fechaBaja` date DEFAULT NULL,
+   UNIQUE KEY `tipo` (`tipo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_spanish2_ci;
+
+INSERT INTO `UsuarioAccionTipo` (`id`, `tipo`, `fechaAlta`) VALUES
+(1, 'Login', '2022-06-12 18:20:31'),
+(2, 'Alta', '2022-06-12 18:20:31'),
+(3, 'Baja', '2022-06-12 18:20:31'),
+(4, 'Modificacion', '2022-06-12 18:20:31');
+
+ALTER TABLE `UsuarioAccionTipo`
+  ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `UsuarioAccionTipo`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 4;
+COMMIT;
+----------------------------------------------------------------------
+USE `db_comanda`;
+DROP TABLE IF EXISTS `usuarioAccion`;
+
+-- Estructura de tabla para la tabla `usuario`
+CREATE TABLE `usuarioAccion` (
+  `id` int(11) NOT NULL,
+  `idUsuario` int(11) NOT NULL,
+  `idUsuarioAccionTipo` int(11) NOT NULL,
+  `idPedido` int(11)  NULL,
+  `idPedidoDetalle` int(11) NULL,
+  `idMesa` int(11) NULL,
+  `idProducto` int(11) NULL,
+  `idArea` int(11) NULL,
+  `hora` varchar(8) COLLATE utf8_spanish2_ci NOT NULL,
+  `fechaAlta` date NOT NULL,
+  `fechaModificacion` date DEFAULT NULL,
+  `fechaBaja` date DEFAULT NULL,
+  FOREIGN KEY `FK_usuarioAccion_usuario` (`idUsuario`) REFERENCES `usuario` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_UsuarioAccionTipo` (`idUsuarioAccionTipo`) REFERENCES `UsuarioAccionTipo` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_pedido` (`idPedido`) REFERENCES `pedido` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_pedidoDetalle` (`idPedidoDetalle`) REFERENCES `pedidoDetalle` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_mesa` (`idMesa`) REFERENCES `mesa` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_producto` (`idProducto`) REFERENCES `producto` (`id`),
+  FOREIGN KEY `FK_usuarioAccion_area` (`idArea`) REFERENCES `area` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_spanish2_ci;
+
+ALTER TABLE `usuarioAccion`
+  ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `usuarioAccion`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 COMMIT;
 

@@ -12,12 +12,6 @@ use \App\Models\Usuario as Usuario;
 use \App\Models\UsuarioTipo as UsuarioTipo;
 class Acceso
 {
-    public static function LogOperacion($request, $response, $next)
-    {
-        $retorno = $next($request, $response);
-        return $retorno;
-    }
-
     public function isAdmin($request, $handler)
     {
         try
@@ -29,18 +23,16 @@ class Acceso
             $token = trim(explode("Bearer", $header)[1]);
 
             AutentificadorJWT::VerificarToken($token);
-
             $data = AutentificadorJWT::ObtenerData($token);
+
+            self::ValidarDataToken($data);
             
-            $obj = Usuario::where('usuario', $data->usuario)->first();
-        
-            if ($obj->idUsuarioTipo == UsuarioTipo::Administrador) {
-                $obj->PrintUsuario();
-                $response = $handler->handle($request); 
-            } else {
-                $response->getBody()->write(json_encode(array("error" => "Acceso solo Administradores")));
-                $response = $response->withStatus(401);
-            }
+            $obj = Usuario::find($data->idUsuario);
+            
+            if ($obj->idUsuarioTipo != UsuarioTipo::Administrador) { throw new Exception('Acceso sólo Administradores'); }
+
+            $obj->PrintUsuario();
+            $response = $handler->handle($request); 
         }
         catch(Exception $e){
             $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
@@ -61,19 +53,17 @@ class Acceso
             $token = trim(explode("Bearer", $header)[1]);
             
             AutentificadorJWT::VerificarToken($token);
-
             $data = AutentificadorJWT::ObtenerData($token);
             
-            $obj = Usuario::where('usuario', $data->usuario)->first();
-        
-            if ($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
-            $obj->idUsuarioTipo == UsuarioTipo::Socio) {
-                $obj->PrintUsuario();
-                $response = $handler->handle($request); 
-            } else {
-                $response->getBody()->write(json_encode(array("error" => "Acceso solo Administradores o Socios")));
-                $response = $response->withStatus(401);
-            }
+            self::ValidarDataToken($data);
+
+            $obj = Usuario::find($data->idUsuario);
+            
+            if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
+            $obj->idUsuarioTipo == UsuarioTipo::Socio)) { throw new Exception('Acceso sólo Administradores o Socios'); }
+
+            $obj->PrintUsuario();
+            $response = $handler->handle($request); 
         }
         catch(Exception $e){
             $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
@@ -94,18 +84,50 @@ class Acceso
             $token = trim(explode("Bearer", $header)[1]);
 
             AutentificadorJWT::VerificarToken($token);
-
             $data = AutentificadorJWT::ObtenerData($token);
             
-            $obj = Usuario::where('usuario', $data->usuario)->first();
+            self::ValidarDataToken($data);
+
+            $obj = Usuario::find($data->idUsuario);
         
-            if ($obj->idUsuarioTipo == UsuarioTipo::Mozo) {
-                $obj->PrintUsuario();
-                $response = $handler->handle($request); 
-            } else {
-                $response->getBody()->write(json_encode(array("error" => "Acceso solo Mozo")));
-                $response = $response->withStatus(401);
-            }
+            if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
+            $obj->idUsuarioTipo == UsuarioTipo::Socio ||
+            $obj->idUsuarioTipo != UsuarioTipo::Mozo)) { throw new Exception('Acceso sólo Administradores, Socios o Mozos'); }
+
+            $obj->PrintUsuario();
+            $response = $handler->handle($request); 
+        }
+        catch(Exception $e){
+            $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
+            $response = $response->withStatus(401);
+        }
+
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    public function isCocinero($request, $handler)
+    {
+        try
+        {
+            $header = $request->getHeaderLine('Authorization');
+            $response = new Response();
+            
+            if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
+            $token = trim(explode("Bearer", $header)[1]);
+
+            AutentificadorJWT::VerificarToken($token);
+            $data = AutentificadorJWT::ObtenerData($token);
+            
+            self::ValidarDataToken($data);
+
+            $obj = Usuario::find($data->idUsuario);
+        
+            if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
+            $obj->idUsuarioTipo == UsuarioTipo::Socio ||
+            $obj->idUsuarioTipo != UsuarioTipo::Cocinero)) { throw new Exception('Acceso sólo Administradores, Socios o Cocineros'); }
+
+            $obj->PrintUsuario();
+            $response = $handler->handle($request); 
         }
         catch(Exception $e){
             $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
@@ -117,46 +139,40 @@ class Acceso
 
     public function isUsuario($request, $handler)
     {
-        $header = $request->getHeaderLine('Authorization');
-        $response = new Response();
-        if (!empty($header)) {
+        try
+        {
+            $header = $request->getHeaderLine('Authorization');
+            if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
+            
             $token = trim(explode("Bearer", $header)[1]);
             AutentificadorJWT::VerificarToken($token);
             $data = AutentificadorJWT::ObtenerData($token);
             
-            if(self::ValidarToken($token)){
-                $obj = Usuario::where('usuario', $data->usuario)->first();
-                $obj->PrintUsuario();
-                $response = $handler->handle($request);
-            }else{
-                $response->getBody()->write(json_encode(array("error" => "Acceso solo Usuarios")));
-                $response = $response->withStatus(401);
-            }
-        } else {
-            $response->getBody()->write(json_encode(array("Token error" => "Es necesario Token para acceso")));
+            $response = new Response();
+
+            self::ValidarDataToken($data);
+                        
+            $obj = Usuario::find($data->idUsuario);
+
+            $obj->PrintUsuario();
+            $response = $handler->handle($request);
+        }catch(Exception $e){
+            $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
             $response = $response->withStatus(401);
         }
 
         return $response->withHeader('Content-Type', 'application/json');
     }
 
-    static private function ValidarToken($token)
+    static private function ValidarDataToken($data)
     {
-        $data = AutentificadorJWT::ObtenerData($token);
-        if($data->usuario !== null && isset($data->usuario)){
-            $obj = Usuario::where('usuario', $data->usuario)->first();
-            
-            if ($obj !== null) {
-                return true;
-            } 
-            else {
-                return false;
-            }
+        if(isset($data->idUsuario) && isset($data->usuario) && isset($data->clave)){
+            $obj = Usuario::find($data->idUsuario);
+            if($obj == null) { throw new Exception('No existe Usuario'); }
         }
         else {
-            return false;
+            throw new Exception('Id, Usuario o Clave no fueron seteados en Token');
         }
     }
-
 
 }

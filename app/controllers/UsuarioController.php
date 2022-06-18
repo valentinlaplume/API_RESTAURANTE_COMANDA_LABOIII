@@ -1,13 +1,30 @@
 <?php
+date_default_timezone_set("America/Buenos_Aires");
+require_once './interfaces/IApiUsable.php';
+require_once './middlewares/AutentificadorJWT.php';
+
 require_once './models/Usuario.php';
 require_once './models/UsuarioTipo.php';
-require_once './interfaces/IApiUsable.php';
+require_once './models/UsuarioAccion.php';
+require_once './models/UsuarioAccionTipo.php';
 
 use \App\Models\Usuario as Usuario;
 use \App\Models\UsuarioTipo as UsuarioTipo;
+use \App\Models\UsuarioAccion as UsuarioAccion;
+use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 
 class UsuarioController implements IApiUsable
 {
+  public function GetAllUsuarioAccion($request, $response, $args)
+  {
+    $lista = UsuarioAccion::all();
+    $payload = json_encode(array("listaUsuarioAccion" => $lista));
+
+    $response->getBody()->write($payload);
+    return $response
+      ->withHeader('Content-Type', 'application/json');
+  }
+
   public function GetAll($request, $response, $args)
   {
     $lista = Usuario::all();
@@ -48,34 +65,57 @@ class UsuarioController implements IApiUsable
 
   public function Save($request, $response, $args)
   {
-    $data = $request->getParsedBody();
-    $idUsuarioTipo = $data['idUsuarioTipo'];
-    if($idUsuarioTipo == UsuarioTipo::Administrador){
-      $payload = json_encode(array("mensaje" => "No es válido crear administrador"));
-    }
+    try{
 
-    $idArea = $data['idArea'];
-    $usuario = $data['usuario'];
-    $clave = $data['clave'];
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      // $response = $handler->handle($request);
+      $body = json_decode($response->getBody());
+      $header = $request->getHeaderLine('Authorization');
 
-    $usr = new Usuario();
-    $usr->idUsuarioTipo = $idUsuarioTipo;
-    $usr->idArea = $idArea;
-    $usr->usuario = $usuario;
-    $usr->clave = $clave;
-    $usr->save();
+      $data = $request->getParsedBody();
 
-    $payload = json_encode(array("mensaje" => "Usuario creado con exito"));
-    $response->getBody()->write($payload);
-    return $response
+      if(Usuario::ExisteUsuario($data['usuario'])) { throw new Exception("Nombre de Usuario ya existe"); }
+        
+      $idUsuarioTipo = $data['idUsuarioTipo'];
+      $idArea = $data['idArea'];
+      $usuario = $data['usuario'];
+      $clave = $data['clave'];
+        
+      $usr = new Usuario();
+      $usr->idUsuarioTipo = $idUsuarioTipo;
+      $usr->idArea = $idArea;
+      $usr->usuario = $usuario;
+      $usr->clave = $clave;
+      $usr->save();
+
+      $payload = json_encode(
+      array(
+        "mensaje" => "Usuario creado con éxito",
+        "idUsuario" => $idUsuarioLogeado,
+        "idUsuarioAccionTipo" => UsuarioAccionTipo::Alta,
+        "idPedido" => null, 
+        "idPedidoDetalle" => null, 
+        "idMesa" => null, 
+        "idProducto" => null, 
+        "idArea" => null,
+        "hora" => date('h:i:s'))
+      );
+      
+      $response->getBody()->write($payload);
+      return $response
       ->withHeader('Content-Type', 'application/json');
+    }catch (Exception $e) {
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
-
-  public function Update($request, $response, $args)
-  {
-    $data = $request->getParsedBody();
-
-    $usrModificado = $data['usuario'];
+    
+    public function Update($request, $response, $args)
+    {
+      $data = $request->getParsedBody();
+      
+      $usrModificado = $data['usuario'];
 
     // Conseguimos el objeto
     $obj = Usuario::where('id', '=', $args['id'])->first();
@@ -112,4 +152,6 @@ class UsuarioController implements IApiUsable
     return $response
       ->withHeader('Content-Type', 'application/json');
   }
+
+
 }

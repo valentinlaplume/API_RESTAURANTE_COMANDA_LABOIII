@@ -1,10 +1,14 @@
 <?php
+date_default_timezone_set("America/Buenos_Aires");
 require_once './models/Producto.php';
 require_once './models/ProductoTipo.php';
+require_once './models/UsuarioAccionTipo.php';
+
 require_once './interfaces/IApiUsable.php';
 
 use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
+use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 
 class ProductoController implements IApiUsable
 {

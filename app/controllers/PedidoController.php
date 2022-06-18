@@ -1,5 +1,7 @@
 <?php
+date_default_timezone_set("America/Buenos_Aires");
 require_once './interfaces/IApiUsable.php';
+require_once './middlewares/AutentificadorJWT.php';
 
 require_once './models/Pedido.php';
 require_once './models/PedidoEstado.php';
@@ -10,10 +12,9 @@ require_once './models/Producto.php';
 require_once './models/ProductoTipo.php';
 require_once './models/Usuario.php';
 require_once './models/UsuarioTipo.php';
-
-require_once './middlewares/AutentificadorJWT.php';
-
-// use Illuminate\Support\Facades\DB;
+require_once './models/UsuarioAccion.php';
+require_once './models/UsuarioAccionTipo.php';
+require_once './models/UsuarioAccionTipo.php';
 
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
@@ -24,6 +25,9 @@ use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
 use \App\Models\Usuario as Usuario;
 use \App\Models\UsuarioTipo as UsuarioTipo;
+use \App\Models\UsuarioAccion as UsuarioAccion;
+use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
+
 use Slim\Psr7\Response;
 
 class PedidoController implements IApiUsable
@@ -190,12 +194,11 @@ class PedidoController implements IApiUsable
 
       $payload = json_encode(array("Mensaje" => "Pedido generado correctamente"));
       $response->getBody()->write($payload);
-
       return $response->withHeader('Content-Type', 'application/json');
-   }catch(Exception $e){
-      $response->getBody()->write($e->getMessage());
+    }catch(Exception $e){
+      $response->getBody()->write(json_encode(array("Mensaje" => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
-   }
+    }
 
   }
 

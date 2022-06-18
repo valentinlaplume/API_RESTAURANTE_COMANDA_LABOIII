@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set("America/Buenos_Aires");
 require_once './models/MesaEstado.php';
 require_once './interfaces/IApiUsable.php';
 
