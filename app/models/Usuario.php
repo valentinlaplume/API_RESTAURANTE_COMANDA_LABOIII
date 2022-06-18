@@ -27,7 +27,7 @@ class Usuario extends Model
     
     static public function ExisteUsuario($nombreUsuario)
     {
-      if(Usuario::where('usuario', '=', $nombreUsuario)->first() != null) { return true; }
+      if(Usuario::where('usuario', $nombreUsuario)->first() != null) { return true; }
 
       return false;
     }

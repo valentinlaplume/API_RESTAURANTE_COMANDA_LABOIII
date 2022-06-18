@@ -15,6 +15,7 @@ require_once './models/UsuarioTipo.php';
 require_once './models/UsuarioAccion.php';
 require_once './models/UsuarioAccionTipo.php';
 require_once './models/UsuarioAccionTipo.php';
+require_once './models/ManejadorArchivos.php';
 
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
@@ -43,23 +44,22 @@ class PedidoController implements IApiUsable
 
       $obj = Usuario::where('usuario', $data->usuario)->first();
         
+      // Si es adm - socio o mozo, ve los pedidos Generales
       if ($obj->idUsuarioTipo == UsuarioTipo::Administrador || 
           $obj->idUsuarioTipo == UsuarioTipo::Socio || 
           $obj->idUsuarioTipo == UsuarioTipo::Mozo) {
           $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
 
-          echo ' - Pedidos Generales: '.PHP_EOL;
+          echo 'Pedidos Generales: ' .PHP_EOL.PHP_EOL;
           $payload = json_encode(array("listPendientes" => $listPendientes));
 
           $response->getBody()->write($payload);
-          return $response
-            ->withHeader('Content-Type', 'application/json');
+          return $response->withHeader('Content-Type', 'application/json');
       }
 
       // obtengo todos los pedidos Pendientes
       $pedidosPendientes = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
 
-       
       $productosElaborar = array();
       foreach ($pedidosPendientes as $pedidoIndividual)
       {
@@ -69,37 +69,42 @@ class PedidoController implements IApiUsable
           array_push($productosElaborar, $pedidoIndividual);
         }
       }
-
       $payload = json_encode(array("listPedidoPendientes" => $productosElaborar));
   
       $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
+      return $response->withHeader('Content-Type', 'application/json');
     }catch(Exception $e){
-      $response->getBody()->write($e->Message());
-      return $response
-        ->withHeader('Content-Type', 'application/json');
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
     }
   }
 
   public function GetAllPedidoDetalleCliente($request, $response, $args)
   {
-    try{
+    try
+    {
       $codigoPedido = isset($args['codigoPedido']) ? $args['codigoPedido'] : null;
       $codigoMesa = isset($args['codigoMesa']) ? $args['codigoMesa'] : null;
-      if($codigoPedido == null  || $codigoMesa == null){ throw new Exception('Al menos un dato de consulta no seteado.'); }
+      if($codigoPedido == null  || $codigoMesa == null){ throw new Exception('Al menos un dato de consulta no fue seteado.'); }
 
       $pedido = Pedido::where('codigo', $codigoPedido)->first();
-      $mesa = Mesa::where('codigo',  $codigoMesa)->first();
       if($pedido == null){ throw new Exception('Pedido no encontrado.'); }
+
+      $mesa = Mesa::where('codigo',  $codigoMesa)->first();
       if($mesa == null){ throw new Exception('Mesa no encontrada.'); }
 
-      $payload = json_encode(array("listPedidoDetalle" => $pedido->ListPedidoDetalle));
+      $payload = json_encode(array(
+        'mensaje' => 'Seguimiento de estados de Pedidos del Cliente',
+        "listPedidoDetalle" => $pedido->ListPedidoDetalle
+      ));
 
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
-    }catch(Exception $e){
-      $response->getBody()->write($e->getMessage());
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
     }
   }
@@ -108,7 +113,9 @@ class PedidoController implements IApiUsable
     public function GetAll($request, $response, $args)
     {
       $lista = Pedido::all();
-      $payload = json_encode(array("listaPedido" => $lista));
+      $payload = json_encode(array(
+        'mensaje' => 'Listado de Pedidos Generales',
+        "listaPedido" => $lista));
 
       $response->getBody()->write($payload);
       return $response
@@ -122,7 +129,9 @@ class PedidoController implements IApiUsable
 
     $lista = Pedido::where($field, $value)->get();
 
-    $payload = json_encode(array("listaPedido" => $lista));
+    $payload = json_encode(array(
+      'mensaje' => 'Consulta de Pedido General por ' . $args['field'],
+      "listaPedido" => $lista));
 
     $response->getBody()->write($payload);
     return $response
@@ -143,25 +152,65 @@ class PedidoController implements IApiUsable
       ->withHeader('Content-Type', 'application/json');
   }
 
+  public function SaveFoto($request, $response, $args)
+  {
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      if(!isset($_FILES) || !isset($_POST['codigoPedido'])) { throw new Exception('La foto o el código del Pedido no fueron seteados.'); }
+
+      $obj = Pedido::where('codigo','=',$_POST['codigoPedido'])->first();
+      if($obj == null){ throw new Exception('El código ingresado no le pertenece a ningún Pedido.'); }
+
+      $directory = './imagenes/pedido';
+      $fileName = $obj->id;
+      if(!ManejadorArchivos::SaveImage($directory, $fileName, $_FILES))
+      { throw new Exception('No fue posible guardar imagen de la Mesa con los Clientes en el Pedido '.$_POST['codigoPedido'] ); }
+
+      $obj->foto = './imagenes/pedido' . $obj->id . '.png';
+      $obj->save();
+
+      $payload = json_encode(
+      array(
+      "mensaje" => "Foto de Mesa con Clientes guardada con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idPedido" => $obj->id, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s')));
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
   public function Save($request, $response, $args)
   {
-    try{
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
       // ---------------- Junto Data ----------------
       $data = $request->getParsedBody();
-      
-      // ver si es por registro al autenticar
-      $idUsuarioMozo = isset($data['idUsuarioMozo']) ? $data['idUsuarioMozo'] : null;
+
       $nombreCliente = isset($data['nombreCliente']) ? $data['nombreCliente'] : null;
-      
       // ---------------- Modifico estado de mesa ----------------
       $codigoMesa = isset($data['codigoMesa']) ? $data['codigoMesa'] : null;
 
-      if($codigoMesa == null) { 
-        $mesa = Mesa::where('MesaEstado', MesaEstado::Cerrada)->first(); 
-        if($mesa == null){ throw new Exception('No se encuentran Mesas disponibles.'); }
-      }else{
+      if($codigoMesa == null)
+      { 
+        $mesa = Mesa::where('idMesaEstado', MesaEstado::Cerrada)->first(); 
+        if($mesa == null){ throw new Exception('Capacidad llena, no se encuentran Mesas disponibles.'); }
+      }
+      else{
         $mesa = Mesa::where('codigo', $codigoMesa)->first();
-        if($mesa == null){ throw new Exception('Mesa no encontrada.'); }
+        if($mesa == null){ throw new Exception('Mesa no encontrada, verifique código.'); }
         if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('Mesa ocupada.'); }
       }
 
@@ -175,14 +224,15 @@ class PedidoController implements IApiUsable
       $pedido->codigo = Pedido::GenerarCodigoAlfanumerico();
       $pedido->idMesa = $mesa->id;
       $pedido->idPedidoEstado = PedidoEstado::Pendiente; 
-      if($idUsuarioMozo !== null){ $pedido->idUsuarioMozo = $idUsuarioMozo; }
-      if($nombreCliente !== null){ $pedido->nombreCliente = $nombreCliente; }
-      $pedido->foto = './imagenes/pedido/' . $data['foto'];
+      $pedido->idUsuarioMozo = $idUsuarioLogeado; 
+      if($nombreCliente !== null){ $pedido->nombreCliente = $nombreCliente; } else{ $pedido->nombreCliente = " "; }
+      $pedido->foto = null;
       $pedido->importe = $importeTotal;
       $pedido->save();
       
       // ---------------- Save Detalle de Pedido General ----------------
-      foreach ($listPedidoDetalle as $detalle) {
+      foreach ($listPedidoDetalle as $detalle) 
+      {
         $pedidoDetalle = new PedidoDetalle();
         $pedidoDetalle->idPedido = $pedido->id;
         $pedidoDetalle->idProducto =  $detalle['idProducto'];
@@ -192,17 +242,31 @@ class PedidoController implements IApiUsable
         $pedidoDetalle->save();
       }
 
-      $payload = json_encode(array("Mensaje" => "Pedido generado correctamente"));
+      $payload = json_encode(
+      array(
+      "mensaje" => "Pedido generado con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Alta,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s')));
+
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
-    }catch(Exception $e){
-      $response->getBody()->write(json_encode(array("Mensaje" => $e->getMessage())));
+    }
+    catch(Exception $e)
+    {
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
     }
-
   }
 
-  static private function GetImporteTotal($arr = array()){
+  static private function GetImporteTotal($arr = array())
+  {
     $importeTotal = 0;
     foreach ($arr as $pedidoDetalle) {
       $importeTotal += floatval(Producto::where('id', $pedidoDetalle['idProducto'])->first()->precio);
@@ -220,8 +284,7 @@ class PedidoController implements IApiUsable
     $precio = isset($data['precio']) ? $data['precio'] : null;
     $stock = isset($data['stock']) ? $data['stock'] : null;
 
-    // Conseguimos el objeto
-    $obj = Pedido::where('id', '=', $args['id'])->first();
+    $obj = Pedido::find($args['id']);
 
     if ($obj !== null) {
       if($idArea !== null) { $obj->idArea = $idArea; }

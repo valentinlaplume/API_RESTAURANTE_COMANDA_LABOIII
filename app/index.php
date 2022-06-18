@@ -118,18 +118,21 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {
-  $group->get('[/]', \PedidoController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
-  $group->get('/{field}/{value}', \PedidoController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
-  $group->get('/first/{field}/{value}', \PedidoController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio');
+  $group->get('[/]', \PedidoController::class . ':GetAll')->add(\Acceso::class . ':isMozo');
+  $group->get('/{field}/{value}', \PedidoController::class . ':GetAllBy')->add(\Acceso::class . ':isMozo');
+  $group->get('/first/{field}/{value}', \PedidoController::class . ':GetFirstBy')->add(\Acceso::class . ':isMozo');
   
-  // Seguimiento Pedido
-  $group->get('/seguimiento/{codigoPedido}/{codigoMesa}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
-
   // ABM
   $group->post('[/]', \PedidoController::class . ':Save')->add(\Acceso::class . ':isMozo');
   $group->put('/{id}', \PedidoController::class . ':Update')->add(\Acceso::class . ':isMozo');
   $group->delete('/{id}', \PedidoController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
-
+  
+  // Save Foto
+  $group->post('/foto', \PedidoController::class . ':SaveFoto')->add(\Acceso::class . ':isMozo');
+  
+  // Seguimiento Pedido del Cliente
+  $group->get('/seguimiento/{codigoMesa}/{codigoPedido}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
+  
   // Pedidos pendientes filtro
   $group->get('/pendientes', \PedidoController::class . ':GetAllPendientes')->add(\Acceso::class . ':isUsuario');
 })->add(\Util::class . ':RegistrarAccionUsuario');

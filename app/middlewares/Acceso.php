@@ -29,9 +29,9 @@ class Acceso
             
             $obj = Usuario::find($data->idUsuario);
             
+            $obj->PrintUsuario();
             if ($obj->idUsuarioTipo != UsuarioTipo::Administrador) { throw new Exception('Acceso sólo Administradores'); }
 
-            $obj->PrintUsuario();
             $response = $handler->handle($request); 
         }
         catch(Exception $e){
@@ -59,10 +59,10 @@ class Acceso
 
             $obj = Usuario::find($data->idUsuario);
             
+            $obj->PrintUsuario();
             if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
             $obj->idUsuarioTipo == UsuarioTipo::Socio)) { throw new Exception('Acceso sólo Administradores o Socios'); }
 
-            $obj->PrintUsuario();
             $response = $handler->handle($request); 
         }
         catch(Exception $e){
@@ -90,11 +90,11 @@ class Acceso
 
             $obj = Usuario::find($data->idUsuario);
         
+            $obj->PrintUsuario();
             if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
             $obj->idUsuarioTipo == UsuarioTipo::Socio ||
-            $obj->idUsuarioTipo != UsuarioTipo::Mozo)) { throw new Exception('Acceso sólo Administradores, Socios o Mozos'); }
+            $obj->idUsuarioTipo == UsuarioTipo::Mozo)) { throw new Exception('Acceso sólo Administradores, Socios o Mozos'); }
 
-            $obj->PrintUsuario();
             $response = $handler->handle($request); 
         }
         catch(Exception $e){
@@ -122,11 +122,11 @@ class Acceso
 
             $obj = Usuario::find($data->idUsuario);
         
+            $obj->PrintUsuario();
             if(!($obj->idUsuarioTipo == UsuarioTipo::Administrador ||
             $obj->idUsuarioTipo == UsuarioTipo::Socio ||
-            $obj->idUsuarioTipo != UsuarioTipo::Cocinero)) { throw new Exception('Acceso sólo Administradores, Socios o Cocineros'); }
+            $obj->idUsuarioTipo == UsuarioTipo::Cocinero)) { throw new Exception('Acceso sólo Administradores, Socios o Cocineros'); }
 
-            $obj->PrintUsuario();
             $response = $handler->handle($request); 
         }
         catch(Exception $e){
@@ -151,9 +151,9 @@ class Acceso
             $response = new Response();
 
             self::ValidarDataToken($data);
-                        
+            
             $obj = Usuario::find($data->idUsuario);
-
+            
             $obj->PrintUsuario();
             $response = $handler->handle($request);
         }catch(Exception $e){

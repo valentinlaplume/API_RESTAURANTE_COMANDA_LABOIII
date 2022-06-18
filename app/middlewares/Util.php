@@ -32,13 +32,22 @@ class Util
             $registro->idUsuarioAccionTipo = $body->idUsuarioAccionTipo; 
 
             $registro->idPedido = $body->idPedido; 
-            $registro->idPedidoDetalle = $body->idPedidoDetalle;
+
             $registro->idMesa = $body->idMesa; 
             $registro->idProducto = $body->idProducto; 
             $registro->idArea = $body->idArea;
             
             $registro->hora = $body->hora; 
-            
+
+            $registro->idPedidoDetalle = $body->idPedidoDetalle;
+            // if($body->PedidoDetalle != null && $body->PedidoDetalle.count() > 0){
+            //     foreach ($body->PedidoDetalle as $idPedidoDetalle) {
+            //         $registro->idPedidoDetalle = $idPedidoDetalle;
+            //         $registro->save();
+            //     } 
+            // }else{
+            //     $registro->save();
+            // }
             $registro->save();
         }
 
