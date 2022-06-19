@@ -22,9 +22,11 @@ class Producto extends Model
     const UPDATED_AT = 'fechaModificacion';
 
     protected $fillable = [
-        'idArea', 'idProductoTipo',
+        'idArea', 
+        'idProductoTipo',
         'nombre', 
-        'precio', 'stock',
+        'precio', 
+        'stock',
         'fechaAlta', 'fechaModificacion', 'fechaBaja'
     ];
 

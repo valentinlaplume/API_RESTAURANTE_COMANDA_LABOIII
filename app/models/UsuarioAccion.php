@@ -35,6 +35,11 @@ class UsuarioAccion extends Model
         return $this->belongsTo(UsuarioAccionTipo::class,'idUsuarioAccionTipo');
     }
 
+    public function Usuario()
+    {
+        return $this->belongsTo(Usuario::class, 'idUsuario');
+    }
+
     public function Pedido()
     {
         return $this->belongsTo(Pedido::class, 'idPedido');

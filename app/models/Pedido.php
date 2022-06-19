@@ -23,9 +23,13 @@ class Pedido extends Model
 
     protected $fillable = [
         'codigo', 
-        'idMesa', 'idPedidoEstado', 'idUsuarioMozo', 'idUsuarioSocio',
+        'idMesa', 
+        'idPedidoEstado', 
+        'idUsuarioMozo', 
+        'idUsuarioSocio',
         'nombreCliente', 
-        'foto', 'importe', 
+        'foto', 
+        'importe', 
         'fechaAlta', 'fechaModificacion', 'fechaBaja'
     ];
 

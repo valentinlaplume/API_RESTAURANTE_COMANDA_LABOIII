@@ -100,6 +100,7 @@ class AutentificadorJWT
             $data = self::ObtenerData($token);
             
             $obj = Usuario::find($data->idUsuario);
+            if($obj == null) { throw new Exception("El Usuario logeado no existe"); }
         
             return $obj;
         }

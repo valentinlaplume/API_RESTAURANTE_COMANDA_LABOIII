@@ -15,16 +15,147 @@ use \App\Models\UsuarioTipo as UsuarioTipo;
 use \App\Models\UsuarioAccion as UsuarioAccion;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 
+use Illuminate\Database\Capsule\Manager as DB;
+
 class UsuarioController implements IApiUsable
 {
-  public function GetAllUsuarioAccion($request, $response, $args)
+  
+  public function GetAllCantidadAccionesArea($request, $response, $args)
   {
-    $lista = UsuarioAccion::all();
-    $payload = json_encode(array("listaUsuarioAccion" => $lista));
+    try
+    {
+      $query =
+      'SELECT 
+        a.descripcion AS area,
+        ut.tipo AS tipoUsuarioArea,
+        COUNT( u.idArea ) AS cantidadAcciones
+      FROM Usuario u
+      INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
+      INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
+      INNER JOIN Area a ON u.idArea = a.id
+        GROUP BY ua.idUsuario
+        ORDER BY cantidadAcciones DESC';
+
+      $lista = DB::select($query);
+
+      $payload = json_encode(array(
+        'mensaje' => 'Lista de Acciones por Area',
+        "listAccionesArea" => $lista));
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch (Exception $e) {
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  public function GetAllCantidadAccionesUsuario($request, $response, $args)
+  {
+    try
+    {
+      $query =
+      'SELECT 
+        u.id as idUsuario,
+        u.usuario,
+        ut.tipo AS tipoUsuario,
+        a.descripcion AS area,
+        COUNT( ua.idUsuario ) AS cantidadAcciones
+      FROM Usuario u
+      INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
+      INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
+      INNER JOIN Area a ON u.idArea = a.id
+        GROUP BY ua.idUsuario
+        ORDER BY cantidadAcciones DESC';
+
+      $lista = DB::select($query);
+
+      $payload = json_encode(array(
+        'mensaje' => 'Lista de Usuarios con cantidad de acciones realizadas',
+        "list" => $lista));
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch (Exception $e) {
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  public function GetAllUsuarioAccionIngresos($request, $response, $args)
+  {
+    $query =
+    'SELECT 
+      u.id as idUsuario,
+      ua.id as idUsuarioAccion,
+      uat.id as idUsuarioAccionTipo,
+      u.usuario,
+      ut.tipo AS tipoUsuario,
+      a.descripcion AS area,
+      uat.tipo as tipoAccion,
+      ua.fechaAlta as fecha,
+      ua.hora as horaAccion
+    FROM Usuario u 
+      INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
+      INNER JOIN UsuarioAccionTipo uat ON ua.idUsuarioAccionTipo = uat.id
+      INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
+      INNER JOIN Area a ON u.idArea = a.id
+        WHERE uat.id = 1';
+
+    $lista = DB::select($query);
+
+    $payload = json_encode(array(
+    'mensaje' => 'Lista de ingresos al sistema de todos los Usuarios / Empleados',
+    "listUsuarioAccion" => $lista));
 
     $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+    return $response->withHeader('Content-Type', 'application/json');
+  }
+
+  public function GetAllUsuarioAccion($request, $response, $args)
+  {
+
+    $query =
+    'SELECT 
+      ua.id as idUsuarioAccion,
+      uat.id as idUsuarioAccionTipo,
+      u.id as idUsuario,
+      ua.idPedido,
+      ua.idPedidoDetalle,
+      ua.idMesa,
+      ua.idProducto,
+      ua.idArea,
+      u.usuario,
+      ut.tipo AS tipoUsuario,
+      a.descripcion AS area,
+      uat.tipo as tipoAccion,
+      ua.fechaAlta as fecha,
+      ua.hora as horaAccion
+    FROM Usuario u
+    INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
+    INNER JOIN UsuarioAccionTipo uat ON ua.idUsuarioAccionTipo = uat.id
+    INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
+    INNER JOIN Area a ON u.idArea = a.id';
+
+    // if(isset($args['idUsuarioAccionTipo']) 
+    // && UsuarioAccionTipo::find($args['idUsuarioAccionTipo']) != null)
+    // {
+    //   $query .= 'WHERE ua.id = ' . $args['idUsuarioAccionTipo'];
+    // }
+    // echo $query;
+
+    $lista = DB::select($query);
+
+    $payload = json_encode(array(
+    'mensaje' => 'Lista de Acciones de todos los Usuarios / Empleados',
+    "listUsuarioAccion" => $lista));
+
+    $response->getBody()->write($payload);
+    return $response->withHeader('Content-Type', 'application/json');
   }
 
   public function GetAll($request, $response, $args)
@@ -68,28 +199,18 @@ class UsuarioController implements IApiUsable
   public function Save($request, $response, $args)
   {
     try{
-
       $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
-      // $response = $handler->handle($request);
-      $body = json_decode($response->getBody());
-      $header = $request->getHeaderLine('Authorization');
-
       $data = $request->getParsedBody();
 
-      if(Usuario::ExisteUsuario($data['usuario'])) { throw new Exception("El Nombre de Usuario ya existe"); }
-      if(UsuarioTipo::find($data['idUsuarioTipo']) == null) { throw new Exception("El Tipo de Usuario no existe"); }
+      if(Usuario::ExisteUsuario($data['usuario'])) { throw new Exception("El nombre de Usuario ya existe"); }
+      if(UsuarioTipo::find($data['idUsuarioTipo']) == null) { throw new Exception("El tipo de Usuario no existe"); }
       if(Area::find($data['idArea']) == null) { throw new Exception("El Area indicada no existe"); }
         
-      $idUsuarioTipo = $data['idUsuarioTipo'];
-      $idArea = $data['idArea'];
-      $usuario = $data['usuario'];
-      $clave = $data['clave'];
-        
       $usr = new Usuario();
-      $usr->idUsuarioTipo = $idUsuarioTipo;
-      $usr->idArea = $idArea;
-      $usr->usuario = $usuario;
-      $usr->clave = $clave;
+      $usr->idUsuarioTipo = $data['idUsuarioTipo'];
+      $usr->idArea = $data['idArea'];
+      $usr->usuario = $data['usuario'];
+      $usr->clave = $data['clave'];
       $usr->save();
 
       $payload = json_encode(
@@ -106,28 +227,34 @@ class UsuarioController implements IApiUsable
       );
       
       $response->getBody()->write($payload);
-      return $response
-      ->withHeader('Content-Type', 'application/json');
-    }catch (Exception $e) {
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch (Exception $e) {
       $response = $response->withStatus(401);
       $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
     }
   }
     
-    public function Update($request, $response, $args)
-    {
+  public function Update($request, $response, $args)
+  {
       try
       {
         $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
         $obj = Usuario::find($args['id']);
+        if ($obj == null) { throw new Exception("No existe Usuario con el id indicado"); }
 
         $data = $request->getParsedBody();
 
-        if ($obj == null) { throw new Exception("Usuario no encontrado"); }
-        if (!isset($data['usuario'])) { throw new Exception("Campo 'usuario' no seteado"); }
+        if (isset($data['usuario'])) { 
+          if(Usuario::ExisteUsuario($data['usuario'])) { throw new Exception("El nombre de Usuario ya existe"); }
+          $obj->usuario = $data['usuario']; 
+        }
+        if (isset($data['clave'])) { $obj->clave = $data['clave']; }
+        if (isset($data['estado']) && is_numeric($data['estado'])) { $obj->estado = intval($data['estado']); }
+        if (isset($data['idArea']) && Area::find($data['idArea']) != null) { $obj->idArea = intval($data['idArea']); }
+        if (isset($data['idUsuarioTipo']) && UsuarioTipo::find($data['idUsuarioTipo']) != null) { $obj->idUsuarioTipo = intval($data['idUsuarioTipo']); }
           
-        $obj->usuario = $data['usuario'];
         $obj->save();
         $payload = json_encode(
         array(
@@ -162,18 +289,19 @@ class UsuarioController implements IApiUsable
       if ($obj == null) { throw new Exception("Usuario no encontrado"); }
 
       $obj->delete();
+      
       $payload = json_encode(
-        array(
-        "mensaje" => "Usuario dado de baja con éxito",
-        "idUsuario" => $idUsuarioLogeado,
-        "idUsuarioAccionTipo" => UsuarioAccionTipo::Baja,
-        "idPedido" => null, 
-        "idPedidoDetalle" => null, 
-        "idMesa" => null, 
-        "idProducto" => null, 
-        "idArea" => null,
-        "hora" => date('h:i:s'))
-        );
+      array(
+      "mensaje" => "Usuario dado de baja con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Baja,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
 
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
@@ -184,6 +312,5 @@ class UsuarioController implements IApiUsable
       return $response->withHeader('Content-Type', 'application/json');
     }
   }
-
 
 }

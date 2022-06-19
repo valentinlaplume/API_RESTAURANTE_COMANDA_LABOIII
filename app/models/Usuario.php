@@ -44,14 +44,15 @@ class Usuario extends Model
 
     public function PrintUsuario()
     {
-        echo '-------------------------';
+        echo '*-----------------------*';
         echo PHP_EOL;
-        echo 'USUARIO: '. $this->usuario;
+        echo 'Usuario: '. $this->usuario;
         echo PHP_EOL;
-        echo 'TIPO: '. $this->UsuarioTipo->tipo;
+        echo 'Tipo: '. $this->UsuarioTipo->tipo;
         echo PHP_EOL;
-        echo '-------------------------';
+        echo 'Area: '. $this->Area->descripcion;
         echo PHP_EOL;
+        echo '*-----------------------*';
         echo PHP_EOL;
     }
 

@@ -30,46 +30,64 @@ use \App\Models\UsuarioAccion as UsuarioAccion;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 
 use Slim\Psr7\Response;
+use Illuminate\Database\Capsule\Manager as DB;
 
 class PedidoController implements IApiUsable
 {
-  public function GetAllPendientes($request, $response, $args)
+  public function GetAllBandejaPedidosPendientes($request, $response, $args)
   {
-    try{
-      $header = $request->getHeaderLine('Authorization');
-      $response = new Response();
-      $token = trim(explode("Bearer", $header)[1]);
-      AutentificadorJWT::VerificarToken($token);
-      $data = AutentificadorJWT::ObtenerData($token);
+    try
+    {
+      $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
+      
+      // Si es Administrador, Socio o Mozo, ve los pedidos Generales
+      if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Administrador || 
+          $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Socio || 
+          $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Mozo) {
 
-      $obj = Usuario::where('usuario', $data->usuario)->first();
-        
-      // Si es adm - socio o mozo, ve los pedidos Generales
-      if ($obj->idUsuarioTipo == UsuarioTipo::Administrador || 
-          $obj->idUsuarioTipo == UsuarioTipo::Socio || 
-          $obj->idUsuarioTipo == UsuarioTipo::Mozo) {
           $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
 
-          echo 'Pedidos Generales: ' .PHP_EOL.PHP_EOL;
-          $payload = json_encode(array("listPendientes" => $listPendientes));
+          $payload = json_encode(array(
+          'mensaje' => 'Lista de Pedidos tomados pendientes',
+          "listPendientes" => $listPendientes));
 
           $response->getBody()->write($payload);
           return $response->withHeader('Content-Type', 'application/json');
       }
 
-      // obtengo todos los pedidos Pendientes
-      $pedidosPendientes = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+      $query =
+      'SELECT 
+        pD.id as idPedidoDetalle,
+        p.id as idPedido,
+        pro.id as idProducto,
+        pE.id as idPedidoEstado,
+        p.idUsuarioMozo as idUsuarioMozo,
+        p.idMesa as idMesa,
+        IFNULL(pD.idUsuarioEncargado, "Espearando empleado que tome pedido") as idUsuarioEncargado,
+        p.codigo as codigoPedidoGeneral,
+        m.codigo as codigoMesa,
+        a.descripcion as areaProducto,
+        u.usuario as usuarioMozoEncargado,
+        pro.nombre as nombreProducto,
+        pD.cantidadProducto as cantidadProducto,
+        pE.estado as estadoPedido
+      FROM PedidoDetalle pD
+      INNER JOIN Pedido p ON p.id = pD.idPedido
+      INNER JOIN Usuario u ON u.id = p.idUsuarioMozo
+      INNER JOIN Producto pro ON pro.id = pD.idProducto
+      INNER JOIN PedidoEstado pE ON pE.id = pD.idPedidoEstado 
+      INNER JOIN Area a ON a.id = pro.idArea
+      INNER JOIN Mesa m ON m.id = p.idMesa 
+      WHERE a.id = ' . $usuarioLogeado->idArea .
+      ' AND pE.id <> '. PedidoEstado::Listo_Para_Servir .
+      ' AND pE.id <>' . PedidoEstado::Cancelado . 
+      ' AND pE.id <> '. PedidoEstado::Servido;
 
-      $productosElaborar = array();
-      foreach ($pedidosPendientes as $pedidoIndividual)
-      {
-        // Obtengo pedidos donde el Producto sea del area del usuario logeado
-        if($pedidoIndividual->Producto->idArea == $obj->idArea)
-        {
-          array_push($productosElaborar, $pedidoIndividual);
-        }
-      }
-      $payload = json_encode(array("listPedidoPendientes" => $productosElaborar));
+      $list = DB::select($query);
+
+      $payload = json_encode(array(
+      'mensaje' => 'Lista de Pedidos Pendientes o en Preparación por Area del Usuario Logeado',
+      "listPedidosPendientes" => $list));
   
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
@@ -88,16 +106,38 @@ class PedidoController implements IApiUsable
       $codigoMesa = isset($args['codigoMesa']) ? $args['codigoMesa'] : null;
       if($codigoPedido == null  || $codigoMesa == null){ throw new Exception('Al menos un dato de consulta no fue seteado.'); }
 
-      $pedido = Pedido::where('codigo', $codigoPedido)->first();
-      if($pedido == null){ throw new Exception('Pedido no encontrado.'); }
-
       $mesa = Mesa::where('codigo',  $codigoMesa)->first();
       if($mesa == null){ throw new Exception('Mesa no encontrada.'); }
 
+      $query =
+      'SELECT 
+        pD.id as idPedidoDetalle,
+        pro.id as idProducto,
+        pE.id as idPedidoEstado,
+        p.idUsuarioMozo as idUsuarioMozo,
+        p.idMesa as idMesa,
+        IFNULL(pD.idUsuarioEncargado, "Espearando empleado que tome pedido") as idUsuarioEncargado,
+        m.codigo as codigoMesa,
+        u.usuario as usuarioMozoEncargado,
+        pro.nombre as nombreProducto,
+        pD.cantidadProducto as cantidadProducto,
+        pE.estado as estadoPedido,
+        pro.precio as precioProducto,
+        IFNULL(pD.tiempoEstimado, "No disponible hasta que un empleado tome pedido e indique") as tiempoEstimado
+      FROM PedidoDetalle pD
+      INNER JOIN Pedido p ON p.id = pD.idPedido
+      INNER JOIN Usuario u ON u.id = p.idUsuarioMozo
+      INNER JOIN Producto pro ON pro.id = pD.idProducto
+      INNER JOIN PedidoEstado pE ON pE.id = pD.idPedidoEstado 
+      INNER JOIN Mesa m ON m.id = p.idMesa 
+      WHERE  p.idMesa = ' . $mesa->id . ' AND p.codigo = ' ."'". $codigoPedido ."'";
+
+      $list = DB::select($query);
+
       $payload = json_encode(array(
-        'mensaje' => 'Seguimiento de estados de Pedidos del Cliente',
-        "listPedidoDetalle" => $pedido->ListPedidoDetalle
-      ));
+        'mensaje' => 'Seguimiento de estado de Pedido del Cliente',
+        'PedidoGeneral' => (Pedido::where('codigo', $codigoPedido)->first()),
+        "listDetallePedidoGeneral" => $list));
 
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
@@ -109,18 +149,17 @@ class PedidoController implements IApiUsable
     }
   }
 
+  public function GetAll($request, $response, $args)
+  {
+    $lista = Pedido::all();
+    $payload = json_encode(array(
+      'mensaje' => 'Listado de Pedidos Generales',
+      "listaPedido" => $lista));
 
-    public function GetAll($request, $response, $args)
-    {
-      $lista = Pedido::all();
-      $payload = json_encode(array(
-        'mensaje' => 'Listado de Pedidos Generales',
-        "listaPedido" => $lista));
-
-      $response->getBody()->write($payload);
-      return $response
-        ->withHeader('Content-Type', 'application/json');
-    }
+    $response->getBody()->write($payload);
+    return $response
+      ->withHeader('Content-Type', 'application/json');
+  }
 
   public function GetAllBy($request, $response, $args)
   {
@@ -146,7 +185,6 @@ class PedidoController implements IApiUsable
     $obj = Pedido::where($field, $value)->first();
 
     $payload = json_encode($obj);
-
     $response->getBody()->write($payload);
     return $response
       ->withHeader('Content-Type', 'application/json');
@@ -162,12 +200,12 @@ class PedidoController implements IApiUsable
       $obj = Pedido::where('codigo','=',$_POST['codigoPedido'])->first();
       if($obj == null){ throw new Exception('El código ingresado no le pertenece a ningún Pedido.'); }
 
-      $directory = './imagenes/pedido';
+      $directory = './imagenes/clientes';
       $fileName = $obj->id;
       if(!ManejadorArchivos::SaveImage($directory, $fileName, $_FILES))
       { throw new Exception('No fue posible guardar imagen de la Mesa con los Clientes en el Pedido '.$_POST['codigoPedido'] ); }
 
-      $obj->foto = './imagenes/pedido' . $obj->id . '.png';
+      $obj->foto = './imagenes/clientes/' . $obj->id . '.png';
       $obj->save();
 
       $payload = json_encode(
@@ -186,6 +224,7 @@ class PedidoController implements IApiUsable
       return $response->withHeader('Content-Type', 'application/json');
     }
     catch(Exception $e){
+      $response = $response->withStatus(401);
       $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
     }
@@ -276,33 +315,116 @@ class PedidoController implements IApiUsable
 
   public function Update($request, $response, $args)
   {
-    $data = $request->getParsedBody();
+    try
+    {
+      $obj = Pedido::find($args['id']);
+      if($obj == null) { throw new Exception('Pedido no encontrado.'); }
+      $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
 
-    $idArea = isset($data['idArea']) ? $data['idArea'] : null;
-    $idPedidoEstado = isset($data['idPedidoEstado']) ? $data['idPedidoEstado'] : null;
-    $nombre = isset($data['nombre']) ? $data['nombre'] : null;
-    $precio = isset($data['precio']) ? $data['precio'] : null;
-    $stock = isset($data['stock']) ? $data['stock'] : null;
+      if($usuarioLogeado->idUsuarioTipo != UsuarioTipo::Administrador 
+      && $usuarioLogeado->idUsuarioTipo != UsuarioTipo::Socio 
+      && $obj->idUsuarioMozo != $usuarioLogeado->id) { throw new Exception('Acceso a modificar pedido sólo Mozo encargado, Administrador o Socios.');  }
 
-    $obj = Pedido::find($args['id']);
+      $data = $request->getParsedBody();
+      $modificar = false;
 
-    if ($obj !== null) {
-      if($idArea !== null) { $obj->idArea = $idArea; }
-      if($idPedidoEstado !== null) { $obj->idPedidoEstado = $idPedidoEstado; }
-      if($nombre !== null) { $obj->nombre = $nombre; }
-      if($precio !== null) { $obj->precio = $precio; }
-      if($stock !== null) { $obj->stock = $stock; }
+      if (isset($data['idMesa']) && Mesa::find($data['idMesa']) != null) { 
+        if(Mesa::find($data['idMesa'])->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('No es posible modificar Mesa, se encuentra ocupada.'); }
+        $obj->idMesa = intval($data['idMesa']); 
+        $modificar = true;
+      }
 
+      if (isset($data['idUsuarioMozo'])) { 
+        if(Usuario::find($data['idUsuarioMozo']) == null) { throw new Exception('id Mozo encargado a modificar no existe'); }
+        if(Usuario::find($data['idUsuarioMozo'])->UsuarioTipo->id != UsuarioTipo::Mozo) { throw new Exception('No es posible modificar pedido, sólo Mozos tienen permitido encargase del pedido general'); }
+        $obj->idUsuarioMozo = intval($data['idUsuarioMozo']); 
+        $modificar = true;
+      }
+
+      if (isset($data['idArea']) && Area::find($data['idArea']) != null) { $obj->idArea = intval($data['idArea']); $modificar = true; }
+      if (isset($data['idPedidoEstado']) && PedidoEstado::find($data['idPedidoEstado']) != null) { $obj->idPedidoEstado = intval($data['idPedidoEstado']); $modificar = true; }
+      if (isset($data['nombreCliente']) != null) { $obj->nombreCliente = $data['nombreCliente']; $modificar = true; }
+      
+      if(!$modificar){ throw new Exception('El Pedido no fue modificado, verifique de indicar campos válidos'); }
+      
       $obj->save();
-      $payload = json_encode(array("mensaje" => "Pedido modificado con exito"));
-    } 
-    else {
-      $payload = json_encode(array("mensaje" => "Pedido no encontrado"));
-    }
 
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+      $payload = json_encode(
+      array(
+      "mensaje" => "Pedido modificado con éxito",
+      "idUsuario" => $usuarioLogeado->id,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idPedido" => $obj->id, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s')));
+  
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  public function UpdatePedidoDetalle($request, $response, $args)
+  {
+    try
+    {
+      $obj = PedidoDetalle::find($args['idPedidoDetalle']);
+      if($obj == null) { throw new Exception('Detalle del Pedido no encontrado.'); }
+      $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
+
+      if(Producto::find($obj->idProducto)->idArea != $usuarioLogeado->idArea) 
+      { throw new Exception('No tienes acceso a modificar Detalle del Pedido, pertenece al Area de '. Producto::find($obj->idProducto)->Area->descripcion); }
+
+      $data = $request->getParsedBody();
+      $modificar = false;
+
+
+      if (isset($data['idPedidoEstado']) && PedidoEstado::find($data['idPedidoEstado']) != null) { 
+        $obj->idPedidoEstado = intval($data['idPedidoEstado']); 
+        if($data['idPedidoEstado'] == PedidoEstado::En_Preparacion) { 
+          $obj->idUsuarioEncargado = 10;//intval($usuarioLogeado->id);
+          $obj->tiempoInicio = date('h:i:s'); 
+        }
+        if($data['idPedidoEstado'] == PedidoEstado::Listo_Para_Servir) { $obj->tiempoFin = date('h:i:s'); }
+        $modificar = true;
+      }
+
+      if (isset($data['tiempoEstimado'])) { 
+        $obj->tiempoEstimado = intval($data['tiempoEstimado']); 
+        $modificar = true;
+      }
+
+      if(!$modificar){ throw new Exception('El Detalle del Pedido no fue modificado, verifique de indicar campos válidos'); }
+      
+      $obj->save();
+
+      $payload = json_encode(
+      array(
+      "mensaje" => "Detalle del Pedido modificado con éxito",
+      "idUsuario" => $usuarioLogeado->id,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idPedido" => null, 
+      "idPedidoDetalle" => $obj->id, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s')));
+  
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 
   public function Delete($request, $response, $args)

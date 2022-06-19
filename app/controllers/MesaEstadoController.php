@@ -1,9 +1,13 @@
 <?php
 date_default_timezone_set("America/Buenos_Aires");
 require_once './models/MesaEstado.php';
+require_once './models/Usuario.php';
+require_once './models/UsuarioTipo.php';
 require_once './interfaces/IApiUsable.php';
 
 use \App\Models\MesaEstado as MesaEstado;
+use \App\Models\Usuario as Usuario;
+use \App\Models\UsuarioTipo as UsuarioTipo;
 
 class MesaEstadoController implements IApiUsable
 {

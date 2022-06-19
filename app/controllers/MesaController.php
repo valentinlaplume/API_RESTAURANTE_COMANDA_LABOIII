@@ -2,12 +2,19 @@
 date_default_timezone_set("America/Buenos_Aires");
 require_once './models/Mesa.php';
 require_once './models/MesaEstado.php';
-require_once './interfaces/IApiUsable.php';
 require_once './models/UsuarioAccionTipo.php';
+require_once './models/Usuario.php';
+require_once './models/UsuarioTipo.php';
+
+require_once './interfaces/IApiUsable.php';
+
+use \App\Models\Usuario as Usuario;
+use \App\Models\UsuarioTipo as UsuarioTipo;
 
 use \App\Models\Mesa as Mesa;
 use \App\Models\MesaEstado as MesaEstado;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
+use Illuminate\Database\Capsule\Manager as DB;
 
 class MesaController implements IApiUsable
 {
@@ -51,64 +58,117 @@ class MesaController implements IApiUsable
 
   public function Save($request, $response, $args)
   {
-    $parametros = $request->getParsedBody();
-    $idMesaEstado = $parametros['idMesaEstado'];
-    $descripcion = $parametros['descripcion'];
-    
-    $usr = new Mesa();
-    $usr->idMesaEstado = $idMesaEstado;
-    $usr->codigo = Mesa::GenerarCodigoAlfanumerico();
-    $usr->descripcion = $descripcion;
-    $usr->save();
-    
-    $payload = json_encode(array("mensaje" => "Mesa creada con exito"));
-    
-    $response->getBody()->write($payload);
-    return $response
-    ->withHeader('Content-Type', 'application/json');
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      $data = $request->getParsedBody();
+      if (!isset($data['descripcion'])) { throw new Exception("Descripción de Mesa no seteada"); }
+      
+      $usr = new Mesa();
+      $usr->idMesaEstado = MesaEstado::Cerrada;
+      $usr->codigo = Mesa::GenerarCodigoAlfanumerico();
+      $usr->descripcion = $data['descripcion'];
+      $usr->save();
+      
+      $payload = json_encode(
+      array(
+      "mensaje" => "Mesa creada con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Alta,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
+      
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 
   public function Update($request, $response, $args)
   {
-    $parametros = $request->getParsedBody();
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      $obj = Mesa::find($args['id']);
+      if ($obj == null) { throw new Exception("No existe Mesa con el id indicado"); }
 
-    $idMesaEstado = isset($parametros['idMesaEstado']) ? $parametros['idMesaEstado'] : null;
-    $descripcion = isset($parametros['descripcion']) ? $parametros['descripcion'] : null;
-    
-    // Conseguimos el objeto
-    $usr = Mesa::where('id', '=', $args['id'])->first();
-    
-    // Si existe
-    if ($usr !== null) {
-      if($idMesaEstado !== null){ $usr->idMesaEstado = $idMesaEstado; }
-      $usr->descripcion = $descripcion;
+      $data = $request->getParsedBody();
 
-      $usr->save();
-      $payload = json_encode(array("mensaje" => "Mesa modificada con exito"));
-    } 
-    else {
-      $payload = json_encode(array("mensaje" => "Mesa no encontrada"));
+      if (isset($data['idMesaEstado']) && MesaEstado::find($data['idMesaEstado']) != null) 
+      {
+        if($data['idMesaEstado'] == MesaEstado::Cerrada 
+        && $idUsuarioLogeado != UsuarioTipo::Administrador 
+        && $idUsuarioLogeado != UsuarioTipo::Socio){
+          throw new Exception("No tienes acceso a Cerrar Mesa, sólo Socio o Administrador");
+        }
+        $obj->idMesaEstado = $data['idMesaEstado']; 
+      } 
+
+      if (isset($data['descripcion'])) { $obj->descripcion = $data['descripcion']; }
+
+      $obj->save();
+      $payload = json_encode(
+      array(
+      "mensaje" => "Mesa modificada con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => $obj->id, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s')
+      ));
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
     }
-
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 
   public function Delete($request, $response, $args)
   {
-    $id = $args['id'];
-    
-    // Buscamos el mesa
-    $obj = Mesa::find($id);
+    try
+    {
+      $obj = Mesa::find($args['id']);
+      if ($obj == null) { throw new Exception("No existe Mesa con el id indicado, puede que se haya dado de baja anteriormente"); }
+      
+      $obj->delete();
+      
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      $payload = json_encode(
+        array(
+        "mensaje" => "Mesa dada de baja con éxito",
+        "idUsuario" => $idUsuarioLogeado,
+        "idUsuarioAccionTipo" => UsuarioAccionTipo::Baja,
+        "idPedido" => null, 
+        "idPedidoDetalle" => null, 
+        "idMesa" => $obj->id, 
+        "idProducto" => null, 
+        "idArea" => null,
+        "hora" => date('h:i:s')
+      ));
 
-    // Borramos
-    $obj->delete();
-
-    $payload = json_encode(array("mensaje" => "Mesa borrada con exito"));
-
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 }

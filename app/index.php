@@ -64,17 +64,22 @@ $app->group('/login', function (RouteCollectorProxy $group) {
   $group->post('[/]', \LoginController::class . ':AccesApp'); 
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
-
 $app->group('/usuarios', function (RouteCollectorProxy $group) {
-  $group->get('[/]', \UsuarioController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
-  $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
-  $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio'); 
-  $group->post('[/]', \UsuarioController::class . ':Save')->add(\Acceso::class . ':isAdmin');
-  $group->put('/{id}', \UsuarioController::class . ':Update')->add(\Acceso::class . ':isAdmin');
-  $group->delete('/{id}', \UsuarioController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
-
-  // ACCIONES USUARIOS
-  $group->get('/acciones', \UsuarioController::class . ':GetAllUsuarioAccion')->add(\Acceso::class . ':isAdminOSocio');
+    
+    $group->get('[/]', \UsuarioController::class . ':GetAll')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/{field}/{value}', \UsuarioController::class . ':GetAllBy')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/first/{field}/{value}', \UsuarioController::class . ':GetFirstBy')->add(\Acceso::class . ':isAdminOSocio'); 
+    
+    //ABM
+    $group->post('[/]', \UsuarioController::class . ':Save')->add(\Acceso::class . ':isAdmin');
+    $group->put('/{id}', \UsuarioController::class . ':Update')->add(\Acceso::class . ':isAdmin');
+    $group->delete('/{id}', \UsuarioController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
+    
+    // ACCIONES USUARIOS
+    $group->get('/acciones', \UsuarioController::class . ':GetAllUsuarioAccion')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/ingresos', \UsuarioController::class . ':GetAllUsuarioAccionIngresos')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/cantidadAcciones', \UsuarioController::class . ':GetAllCantidadAccionesUsuario')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/cantidadAccionesArea', \UsuarioController::class . ':GetAllCantidadAccionesArea')->add(\Acceso::class . ':isAdminOSocio');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/usuarioTipos', function (RouteCollectorProxy $group) {
@@ -93,8 +98,10 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('[/]', \MesaController::class . ':GetAll');
     $group->get('/{field}/{value}', \MesaController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \MesaController::class . ':GetFirstBy'); 
-    $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
-    $group->put('/{id}', \MesaController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
+    
+    //ABM
+    $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isMozo');
+    $group->put('/{id}', \MesaController::class . ':Update')->add(\Acceso::class . ':isMozo');
     $group->delete('/{id}', \MesaController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
@@ -112,6 +119,8 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
     $group->get('[/]', \ProductoController::class . ':GetAll');
     $group->get('/{field}/{value}', \ProductoController::class . ':GetAllBy');
     $group->get('/first/{field}/{value}', \ProductoController::class . ':GetFirstBy'); 
+    
+    //ABM
     $group->post('[/]', \ProductoController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
     $group->put('/{id}', \ProductoController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
     $group->delete('/{id}', \ProductoController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
@@ -126,6 +135,7 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
   $group->post('[/]', \PedidoController::class . ':Save')->add(\Acceso::class . ':isMozo');
   $group->put('/{id}', \PedidoController::class . ':Update')->add(\Acceso::class . ':isMozo');
   $group->delete('/{id}', \PedidoController::class . ':Delete')->add(\Acceso::class . ':isAdmin');
+  $group->put('/detalle/{idPedidoDetalle}', \PedidoController::class . ':UpdatePedidoDetalle')->add(\Acceso::class . ':isUsuario');
   
   // Save Foto
   $group->post('/foto', \PedidoController::class . ':SaveFoto')->add(\Acceso::class . ':isMozo');
@@ -133,8 +143,8 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
   // Seguimiento Pedido del Cliente
   $group->get('/seguimiento/{codigoMesa}/{codigoPedido}', \PedidoController::class . ':GetAllPedidoDetalleCliente');
   
-  // Pedidos pendientes filtro
-  $group->get('/pendientes', \PedidoController::class . ':GetAllPendientes')->add(\Acceso::class . ':isUsuario');
+  // Pedidos bandeja empleado
+  $group->get('/bandeja', \PedidoController::class . ':GetAllBandejaPedidosPendientes')->add(\Acceso::class . ':isUsuario');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 

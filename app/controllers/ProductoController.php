@@ -9,7 +9,7 @@ require_once './interfaces/IApiUsable.php';
 use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
-
+use Illuminate\Database\Capsule\Manager as DB;
 class ProductoController implements IApiUsable
 {
   public function GetAll($request, $response, $args)

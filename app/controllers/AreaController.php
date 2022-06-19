@@ -5,6 +5,7 @@ require_once './models/Area.php';
 require_once './interfaces/IApiUsable.php';
 
 use \App\Models\Area as Area;
+use Illuminate\Database\Capsule\Manager as DB;
 
 class AreaController implements IApiUsable
 {
