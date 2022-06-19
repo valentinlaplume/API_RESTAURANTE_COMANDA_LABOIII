@@ -2,10 +2,12 @@
 date_default_timezone_set("America/Buenos_Aires");
 require_once './models/Producto.php';
 require_once './models/ProductoTipo.php';
+require_once './models/Area.php';
 require_once './models/UsuarioAccionTipo.php';
 
 require_once './interfaces/IApiUsable.php';
 
+use \App\Models\Area as Area;
 use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
@@ -50,78 +52,148 @@ class ProductoController implements IApiUsable
       ->withHeader('Content-Type', 'application/json');
   }
 
+  private static function ValidateInputData($data){
+    if($data == null) { throw new Exception("No se encontró datos de entrada"); }
+
+    if (!isset($data['idArea'])) { throw new Exception("idArea no seteado"); }
+    else if(Area::find($data['idArea']) == null) { throw new Exception("No existe idArea indicada"); }
+
+    if (!isset($data['idProductoTipo'])) { throw new Exception("idProductoTipo no seteado"); }
+    else if(ProductoTipo::find($data['idProductoTipo']) == null) { throw new Exception("No existe idProductoTipo indicado"); }
+
+    if (!isset($data['nombre'])) { throw new Exception("Nombre no seteado"); }
+    if (!isset($data['precio'])) { throw new Exception("Precio no seteado"); }
+    if (!isset($data['stock'])) { throw new Exception("Stock no seteado"); }
+
+    if (floatval($data['precio']) < 0) { throw new Exception("Precio indicado debe ser '>' o '=' a 0"); }
+    if (intval($data['stock']) < 0) { throw new Exception("Stock indicado debe ser '>' o '=' a 0"); }
+  }
+
   public function Save($request, $response, $args)
   {
-    $data = $request->getParsedBody();
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      $data = $request->getParsedBody();
 
-    $idArea = isset($data['idArea']) ? $data['idArea'] : null;
-    $idProductoTipo = isset($data['idProductoTipo']) ? $data['idProductoTipo'] : null;
-    $nombre = isset($data['nombre']) ? $data['nombre'] : null;
-    $precio = isset($data['precio']) ? $data['precio'] : null;
-    $stock = isset($data['stock']) ? $data['stock'] : null;
+      self::ValidateInputData($data);
 
-    $obj = new Producto();
-    if($idArea !== null) { $obj->idArea = $idArea; }
-    if($idProductoTipo !== null) { $obj->idProductoTipo = $idProductoTipo; }
-    if($nombre !== null) { $obj->nombre = $nombre; }
-    if($precio !== null) { $obj->precio = $precio; }
-    if($stock !== null) { $obj->stock = $stock; }
-    $obj->save(); 
-
-    $payload = json_encode(array("mensaje" => "Producto creado con exito"));
-    $response->getBody()->write($payload);
-
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+      $obj = new Producto();
+      $obj->idArea = $data['idArea'];
+      $obj->idProductoTipo = $data['idProductoTipo'];
+      $obj->nombre = $data['nombre'];
+      $obj->precio = floatval($data['precio']);
+      $obj->stock = intval($data['stock']);
+      $obj->save();
+      
+      $payload = json_encode(
+      array(
+      "mensaje" => "Producto creado con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Alta,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => $obj->id, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
+      
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 
   public function Update($request, $response, $args)
   {
-    $data = $request->getParsedBody();
+    try
+    {
+      $obj = Producto::find($args['id']);
+      if($obj == null) { throw new Exception('Producto no encontrado.'); }
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
 
-    $idArea = isset($data['idArea']) ? $data['idArea'] : null;
-    $idProductoTipo = isset($data['idProductoTipo']) ? $data['idProductoTipo'] : null;
-    $nombre = isset($data['nombre']) ? $data['nombre'] : null;
-    $precio = isset($data['precio']) ? $data['precio'] : null;
-    $stock = isset($data['stock']) ? $data['stock'] : null;
+      $data = $request->getParsedBody();
 
-    // Conseguimos el objeto
-    $obj = Producto::where('id', '=', $args['id'])->first();
+      if(isset($data['idArea'])) { 
+        if(Area::find($data['idArea']) == null) { throw new Exception("No existe idArea indicada"); }
+        $obj->idArea = $data['idArea']; 
+      }
 
-    if ($obj !== null) {
-      if($idArea !== null) { $obj->idArea = $idArea; }
-      if($idProductoTipo !== null) { $obj->idProductoTipo = $idProductoTipo; }
-      if($nombre !== null) { $obj->nombre = $nombre; }
-      if($precio !== null) { $obj->precio = $precio; }
-      if($stock !== null) { $obj->stock = $stock; }
+      if(isset($data['idProductoTipo'])) { 
+        if(ProductoTipo::find($data['idProductoTipo']) == null) { throw new Exception("No existe idProductoTipo indicado"); }
+        $obj->idProductoTipo = $data['idProductoTipo']; 
+      }
+
+      if(isset($data['nombre'])) { $obj->nombre = $data['nombre']; }
+
+      if(isset($data['precio'])) { 
+        if (floatval($data['precio']) < 0) { throw new Exception("Precio indicado debe ser '>' o '=' a 0"); }
+        $obj->precio = floatval($data['precio']); 
+      }
+
+      if(isset($data['stock'])) { 
+        if (intval($data['stock']) < 0) { throw new Exception("Stock indicado debe ser '>' o '=' a 0"); }
+        $obj->stock = intval($data['stock']); 
+      }
 
       $obj->save();
-      $payload = json_encode(array("mensaje" => "Producto modificado con exito"));
-    } 
-    else {
-      $payload = json_encode(array("mensaje" => "Producto no encontrado"));
+      $payload = json_encode(
+      array(
+      "mensaje" => "Producto modificado con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => $obj->id, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
+        
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
     }
-
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 
   public function Delete($request, $response, $args)
   {
-    $obj = Producto::find($args['id']);
-    if ($obj !== null) {
-      $obj->producto = $objModificado;
+    try
+    {
+      $obj = Producto::find($args['id']);
+      if($obj == null) { throw new Exception('Producto no encontrado.'); }
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
 
-      $producto->delete();
-      $payload = json_encode(array("mensaje" => "Producto borrado con exito"));
-    } 
-    else {
-      $payload = json_encode(array("mensaje" => "Producto no encontrado"));
+      $obj->delete();
+      $payload = json_encode(
+      array(
+      "mensaje" => "Producto borrado con éxito",
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::Baja,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => $obj->id, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
+          
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
     }
-
-    $response->getBody()->write($payload);
-    return $response
-      ->withHeader('Content-Type', 'application/json');
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
   }
 }

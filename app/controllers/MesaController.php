@@ -64,11 +64,11 @@ class MesaController implements IApiUsable
       $data = $request->getParsedBody();
       if (!isset($data['descripcion'])) { throw new Exception("Descripción de Mesa no seteada"); }
       
-      $usr = new Mesa();
-      $usr->idMesaEstado = MesaEstado::Cerrada;
-      $usr->codigo = Mesa::GenerarCodigoAlfanumerico();
-      $usr->descripcion = $data['descripcion'];
-      $usr->save();
+      $mesaNew = new Mesa();
+      $mesaNew->idMesaEstado = MesaEstado::Cerrada;
+      $mesaNew->codigo = Mesa::GenerarCodigoAlfanumerico();
+      $mesaNew->descripcion = $data['descripcion'];
+      $mesaNew->save();
       
       $payload = json_encode(
       array(
