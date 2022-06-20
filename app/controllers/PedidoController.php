@@ -14,8 +14,11 @@ require_once './models/Usuario.php';
 require_once './models/UsuarioTipo.php';
 require_once './models/UsuarioAccion.php';
 require_once './models/UsuarioAccionTipo.php';
-require_once './models/UsuarioAccionTipo.php';
 require_once './models/ManejadorArchivos.php';
+
+require ('./fpdf/fpdf.php');
+
+
 
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
@@ -252,9 +255,6 @@ class PedidoController implements IApiUsable
         if($mesa == null){ throw new Exception('Mesa no encontrada, verifique código.'); }
         if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('Mesa ocupada.'); }
       }
-
-      $mesa->idMesaEstado = MesaEstado::Cliente_Esperando_Pedido;
-      $mesa->save();
       
       $listPedidoDetalle = $data['listPedidoDetalle'];
       $importeTotal = self::GetImporteTotal($listPedidoDetalle);
@@ -280,6 +280,9 @@ class PedidoController implements IApiUsable
         // $pedidoDetalle->tiempoInicio = date('Y-m-d H:i:s', time());
         $pedidoDetalle->save();
       }
+
+      $mesa->idMesaEstado = MesaEstado::Cliente_Esperando_Pedido;
+      $mesa->save();
 
       $payload = json_encode(
       array(
@@ -444,4 +447,66 @@ class PedidoController implements IApiUsable
     return $response
       ->withHeader('Content-Type', 'application/json');
   }
+
+  static private function GetPedidoMasCaro($pdf)
+  {
+    $max = Pedido::all()->max('importe');
+    $pedido = Pedido::where('importe','=', $max)->first();
+
+    $pdf->Cell(20,10,'---------------- PEDIDO MAS CARO ----------------','C');
+    $pdf->SetFont('Arial','B', 10);
+    $pdf->Ln(13);
+    $pdf->Cell(0,0,'Costo:      $'. $pedido->importe,'C');
+    $pdf->Ln(7);
+    $pdf->Cell(0,0,'Codigo del Pedido:     '. $pedido->codigo,'C');
+    $pdf->Ln(7);
+    $pdf->Cell(0,0,'Codigo de Mesa:     '. $pedido->Mesa->codigo,'C');
+    $pdf->Ln(7);
+    $pdf->Cell(0,0,'Nombre del Cliente:    '. $pedido->nombreCliente,'C');
+    $pdf->Ln(7);
+    $pdf->Cell(0,0,'Fecha:     '. $pedido->fechaAlta,'C');
+    $pdf->Ln(7);
+    // 'Costo: $ '. $pedido->importe .$pdf->Ln(10).
+    // 'Codigo del Pedido: '. $pedido->codigo .$pdf->Ln(10).
+    // 'Codigo de Mesa: '. $pedido->Mesa->codigo .$pdf->Ln(10).
+    // 'Nombre del Cliente: '. $pedido->nombreCliente .$pdf->Ln(10).
+    // 'Fecha: '. $pedido->fechaAlta .$pdf->Ln(10);
+  }
+
+  public function DescargarReporteMesPDF($request, $response, $args)
+  {
+    try
+    {
+      // C:\xampp\htdocs\slim-php-mysql-heroku\app\fpdf\fpdf.php
+      $directory = './reportes/';
+      if (!file_exists($directory)) { mkdir($directory, 0777, true); }
+
+      $pdf = new FPDF();
+      $pdf->AddPage();
+      $pdf->SetFont('Arial','B', 14);
+      $contenido = '';
+      $contenido .= self::GetPedidoMasCaro($pdf);
+      $pdf->Cell(40,10,$contenido);
+
+      $fileName = 'reporte_' .date('Ymd_his'). '.pdf';
+      $path = $directory . $fileName;
+
+      $pdf->Output('F', $path, 'I');
+
+      $payload = json_encode(array(
+        "mensaje" => "Reporte del mes descargado con éxito",
+        "rutaReporteDescargado" => $path
+      ));
+  
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+ 
 }

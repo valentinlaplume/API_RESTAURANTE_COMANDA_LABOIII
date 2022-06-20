@@ -12,6 +12,7 @@ class PedidoEstado extends Model
     const Listo_Para_Servir = 3;
     const Cancelado = 4;
     const Servido = 5;
+    const Cobrado = 6;
 
     use SoftDeletes;
 

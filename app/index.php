@@ -153,6 +153,12 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
   $group->get('/bandeja', \PedidoController::class . ':GetAllBandejaPedidosPendientes')->add(\Acceso::class . ':isUsuario');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
+// REPORTE
+$app->group('/descargarReporteMes', function (RouteCollectorProxy $group) {
+    $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
+
+})->add(\Acceso::class . ':isAdminOSocio');
+
 
 $app->run();
 

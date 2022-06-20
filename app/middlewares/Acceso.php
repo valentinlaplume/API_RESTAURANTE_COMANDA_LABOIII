@@ -169,9 +169,10 @@ class Acceso
         if(isset($data->idUsuario) && isset($data->usuario) && isset($data->clave)){
             $obj = Usuario::find($data->idUsuario);
             if($obj == null) { throw new Exception('No existe Usuario'); }
+            if($obj->estado = 0) { throw new Exception('El Usuario se encuentra registrado pero su estado es "inactivo", si cree que es un error verifique con un Administrador o Socio.'); }
         }
         else {
-            throw new Exception('Id, Usuario o Clave no fueron seteados en Token');
+            throw new Exception('id, usuario o clave no fueron seteados en el Token de acceso.');
         }
     }
 

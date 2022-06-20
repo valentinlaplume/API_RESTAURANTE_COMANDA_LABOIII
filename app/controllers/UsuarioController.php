@@ -318,7 +318,7 @@ class UsuarioController implements IApiUsable
   {
     try 
     {
-      $file = fopen($fileName, 'w');
+      $file = fopen($fileName, 'a');
       foreach ($list as $obj)
       {
         if(!is_null($obj)) 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+
 class Pedido extends Model
 {
     const Comida = 1;
@@ -71,4 +72,5 @@ class Pedido extends Model
       
       return $random_string;
     }
+    
 }

@@ -233,13 +233,14 @@ INSERT INTO `pedidoEstado` (`id`, `estado`, `fechaAlta`) VALUES
 (2, 'En preparacion', '2022-06-12 18:20:31'),
 (3, 'Listo para servir', '2022-06-12 18:20:31'),
 (4, 'Cancelado', '2022-06-12 18:20:31'),
-(5, 'Servido', '2022-06-12 18:20:31');
+(5, 'Servido', '2022-06-12 18:20:31'),
+(6, 'Cobrado', '2022-06-12 18:20:31');
 
 ALTER TABLE `pedidoEstado`
   ADD PRIMARY KEY (`id`);
 
 ALTER TABLE `pedidoEstado`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 6;
 COMMIT;
 
 ----------------------------------------------------------------------
@@ -334,7 +335,7 @@ ALTER TABLE `UsuarioAccionTipo`
   ADD PRIMARY KEY (`id`);
 
 ALTER TABLE `UsuarioAccionTipo`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 7;
 COMMIT;
 ----------------------------------------------------------------------
 USE `db_comanda`;
