@@ -80,6 +80,9 @@ $app->group('/usuarios', function (RouteCollectorProxy $group) {
     $group->get('/ingresos', \UsuarioController::class . ':GetAllUsuarioAccionIngresos')->add(\Acceso::class . ':isAdminOSocio');
     $group->get('/cantidadAcciones', \UsuarioController::class . ':GetAllCantidadAccionesUsuario')->add(\Acceso::class . ':isAdminOSocio');
     $group->get('/cantidadAccionesArea', \UsuarioController::class . ':GetAllCantidadAccionesArea')->add(\Acceso::class . ':isAdminOSocio');
+
+    // Carga por archivo .csv
+    $group->get('/descargarAccionesCsv', \UsuarioController::class . ':DescargarAccionesUsuariosCsv')->add(\Acceso::class . ':isAdminOSocio');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/usuarioTipos', function (RouteCollectorProxy $group) {
@@ -124,6 +127,9 @@ $app->group('/productos', function (RouteCollectorProxy $group) {
     $group->post('[/]', \ProductoController::class . ':Save')->add(\Acceso::class . ':isAdminOSocio');
     $group->put('/{id}', \ProductoController::class . ':Update')->add(\Acceso::class . ':isAdminOSocio');
     $group->delete('/{id}', \ProductoController::class . ':Delete')->add(\Acceso::class . ':isAdminOSocio');
+    
+    // Carga por archivo .csv
+    $group->post('/cargarCsv', \ProductoController::class . ':CargarDataCsvExterno')->add(\Acceso::class . ':isAdminOSocio');
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 $app->group('/pedidos', function (RouteCollectorProxy $group) {

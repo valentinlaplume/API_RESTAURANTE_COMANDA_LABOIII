@@ -4,6 +4,7 @@ require_once './models/Producto.php';
 require_once './models/ProductoTipo.php';
 require_once './models/Area.php';
 require_once './models/UsuarioAccionTipo.php';
+require_once './models/ManejadorArchivos.php';
 
 require_once './interfaces/IApiUsable.php';
 
@@ -11,7 +12,9 @@ use \App\Models\Area as Area;
 use \App\Models\Producto as Producto;
 use \App\Models\ProductoTipo as ProductoTipo;
 use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
+use \App\Models\ManejadorArchivos as ManejadorArchivos;
 use Illuminate\Database\Capsule\Manager as DB;
+
 class ProductoController implements IApiUsable
 {
   public function GetAll($request, $response, $args)
@@ -191,6 +194,99 @@ class ProductoController implements IApiUsable
       return $response->withHeader('Content-Type', 'application/json');
     }
     catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  static private function LeerCsvInterno($fileName)
+  {
+    $list = array();
+    try 
+    {
+      $file = fopen($fileName, "r");
+      $numFila = 0;
+      while(!feof($file))
+      {
+        $numFila++;
+        $line = fgets($file);
+        if (!empty($line))
+        {
+          $data = explode(',', $line);
+          $obj = new Producto();
+          $obj->idArea = (Area::find($data[0]) != null) ? $data[0] : throw new Exception("No existe idArea indicada en la fila ".$numFila);
+          $obj->idProductoTipo = (ProductoTipo::find($data[1]) != null) ? $data[1] : throw new Exception("No existe idProductoTipo indicado en la fila ".$numFila);
+          $obj->nombre = $data[2];
+          $obj->precio = (floatval($data[3]) > 0) ? floatval($data[3]) : throw new Exception("Precio en la fila ".$numFila." debe ser '>' o '=' a 0");
+          $obj->stock = (intval($data[4]) > 0) ? intval($data[4]) : throw new Exception("Stock en la fila ".$numFila." debe ser '>' o '=' a 0");
+          array_push($list, $obj);
+        }
+      }
+      $seActualizo = false;
+      if (count($list) > 0){
+        foreach ($list as $objNew)
+        {
+          $objExistente = Producto::where('nombre', '=', $objNew->nombre)->first();
+          if ($objExistente == null){ $objNew->save(); } 
+          else{
+            $objExistente->idArea = intval($objNew->idArea);
+            $objExistente->idProductoTipo = intval($objNew->idProductoTipo);
+            $objExistente->nombre = $objNew->nombre;
+            $objExistente->precio = floatval($objNew->precio);
+            $objExistente->stock = intval($objNew->stock) + intval($objExistente->stock);
+            $objExistente->update();
+            $seActualizo = true;
+          }
+        }
+      }
+      if($seActualizo) { echo '- Hubo actualizaciones de Productos que ya se encontraban en el sistema.'.PHP_EOL; }
+      return $list;
+    } 
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    finally{
+      fclose($file);
+      return $list;
+    }
+  }
+
+  public function CargarDataCsvExterno($request, $response, $args)
+  {
+    try 
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+      $fileName = explode(".", $_FILES["productosCSV"]["name"]);
+      $directory = './cargasExternas/';
+      if (!file_exists($directory)) { mkdir($directory, 0777, true); }
+
+      $destino = $directory . $fileName[0] . '.csv';
+      $r = move_uploaded_file($_FILES["productosCSV"]["tmp_name"], $destino);
+      if($r){
+        $list = self::LeerCsvInterno($destino);
+        if(count($list) > 0){
+          $payload = json_encode(
+          array(
+            "mensaje" => "Carga de Productos vía archivo CSV con éxito",
+            "idUsuario" => $idUsuarioLogeado,
+            "idUsuarioAccionTipo" => UsuarioAccionTipo::CargaCSV,
+            "idPedido" => null, 
+            "idPedidoDetalle" => null, 
+            "idMesa" => null, 
+            "idProducto" => null, 
+            "idArea" => null,
+            "hora" => date('h:i:s'))
+          );
+        }
+      }
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch (Exception $e) {
       $response = $response->withStatus(401);
       $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');

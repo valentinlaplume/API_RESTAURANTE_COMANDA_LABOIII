@@ -56,4 +56,17 @@ class Usuario extends Model
         echo PHP_EOL;
     }
 
+    public function DataInCsv()
+    {
+        if(get_class($this) == "Usuario"){
+            return $this->UsuarioTipo->tipo 
+            . ',' . $this->Area->descripcion
+            . ',' . $this->usuario
+            . ',' . $this->clave
+            . ',' . $this->estado
+            . ',' . $this->fechaAlta
+            . ',' . $this->fechaModificacion
+            . ',' . $this->fechaBaja;
+        }
+    }
 }

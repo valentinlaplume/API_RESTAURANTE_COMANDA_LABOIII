@@ -282,6 +282,7 @@ class UsuarioController implements IApiUsable
 
   public function Delete($request, $response, $args)
   {
+
     try
     {
       $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
@@ -303,6 +304,101 @@ class UsuarioController implements IApiUsable
       "hora" => date('h:i:s'))
       );
 
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $e){
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  static private function EscribirAccionesUsuariosCsv($fileName, $list = array())
+  {
+    try 
+    {
+      $file = fopen($fileName, 'w');
+      foreach ($list as $obj)
+      {
+        if(!is_null($obj)) 
+        {
+          $dataCsv = $obj->idUsuarioAccion
+          . ',' . $obj->idUsuarioAccionTipo
+          . ',' . $obj->idUsuario
+          . ',' . $obj->idPedido
+          . ',' . $obj->idPedidoDetalle
+          . ',' . $obj->idMesa
+          . ',' . $obj->idProducto
+          . ',' . $obj->idArea
+          . ',' . $obj->usuario
+          . ',' . $obj->tipoUsuario
+          . ',' . $obj->area
+          . ',' . $obj->tipoAccion
+          . ',' . $obj->fecha
+          . ',' . $obj->horaAccion;
+
+          $r = fwrite($file, $dataCsv . PHP_EOL);
+        }
+      }
+      fclose($file);
+      return ($r == false) ? false : true;
+    } 
+    catch (Exception $e) {
+      throw $e;
+    }
+  }
+
+  public function DescargarAccionesUsuariosCsv($request, $response, $args)
+  {
+    try
+    {
+      $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
+
+      $directory = './descargas/usuarios';
+      if (!file_exists($directory)) { mkdir($directory, 0777, true); }
+      $filename = 'usuarioAcciones_'.date('Ymd_his').'.csv';
+      $path = $directory .'/'. $filename;
+
+      $query =
+      'SELECT 
+        ua.id as idUsuarioAccion,
+        uat.id as idUsuarioAccionTipo,
+        u.id as idUsuario,
+        ua.idPedido,
+        ua.idPedidoDetalle,
+        ua.idMesa,
+        ua.idProducto,
+        ua.idArea,
+        u.usuario,
+        ut.tipo AS tipoUsuario,
+        a.descripcion AS area,
+        uat.tipo as tipoAccion,
+        ua.fechaAlta as fecha,
+        ua.hora as horaAccion
+      FROM Usuario u
+      INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
+      INNER JOIN UsuarioAccionTipo uat ON ua.idUsuarioAccionTipo = uat.id
+      INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
+      INNER JOIN Area a ON u.idArea = a.id';
+      $list = DB::select($query);
+
+      if(!self::EscribirAccionesUsuariosCsv($path, $list)) { throw new Exception('No fue posible descargar acciones de Usuario.'); }
+      
+      $payload = json_encode(
+      array(
+      "mensaje" => "Descarga de Acciones de Usuarios vía archivo CSV con éxito, ruta de acceso: ",
+      "rutaArchivoDescargado" => $path,
+      "idUsuario" => $idUsuarioLogeado,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::DescargaCSV,
+      "idPedido" => null, 
+      "idPedidoDetalle" => null, 
+      "idMesa" => null, 
+      "idProducto" => null, 
+      "idArea" => null,
+      "hora" => date('h:i:s'))
+      );
+  
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
     }

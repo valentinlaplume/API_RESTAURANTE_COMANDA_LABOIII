@@ -12,6 +12,9 @@ class UsuarioAccionTipo extends Model
     const Alta = 2;
     const Baja = 3;
     const Modificacion = 4;
+    const CargaFoto = 5;
+    const CargaCSV = 6;
+    const DescargaCSV = 7;
 
     use SoftDeletes; // delete de forma lógica
 

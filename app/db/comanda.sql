@@ -325,7 +325,10 @@ INSERT INTO `UsuarioAccionTipo` (`id`, `tipo`, `fechaAlta`) VALUES
 (1, 'Login', '2022-06-12 18:20:31'),
 (2, 'Alta', '2022-06-12 18:20:31'),
 (3, 'Baja', '2022-06-12 18:20:31'),
-(4, 'Modificacion', '2022-06-12 18:20:31');
+(4, 'Modificacion', '2022-06-12 18:20:31'),
+(5, 'CargaFoto', '2022-06-12 18:20:31'),
+(6, 'CargaCSV', '2022-06-12 18:20:31'),
+(7, 'DescargaCSV', '2022-06-12 18:20:31');
 
 ALTER TABLE `UsuarioAccionTipo`
   ADD PRIMARY KEY (`id`);

@@ -212,7 +212,7 @@ class PedidoController implements IApiUsable
       array(
       "mensaje" => "Foto de Mesa con Clientes guardada con éxito",
       "idUsuario" => $idUsuarioLogeado,
-      "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
+      "idUsuarioAccionTipo" => UsuarioAccionTipo::CargaFoto,
       "idPedido" => $obj->id, 
       "idPedidoDetalle" => null, 
       "idMesa" => null, 
