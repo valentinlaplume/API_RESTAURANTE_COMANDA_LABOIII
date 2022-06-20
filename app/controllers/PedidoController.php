@@ -126,7 +126,8 @@ class PedidoController implements IApiUsable
         pD.cantidadProducto as cantidadProducto,
         pE.estado as estadoPedido,
         pro.precio as precioProducto,
-        IFNULL(pD.tiempoEstimado, "No disponible hasta que un empleado tome pedido e indique") as tiempoEstimado
+        IFNULL(pD.tiempoEstimado, "No disponible hasta que un empleado tome pedido e indique") as tiempoEstimadoEmpleado,
+        IFNULL(pro.tiempoEstimado, "No disponible") as tiempoEstimadoProducto
       FROM PedidoDetalle pD
       INNER JOIN Pedido p ON p.id = pD.idPedido
       INNER JOIN Usuario u ON u.id = p.idUsuarioMozo
@@ -277,6 +278,7 @@ class PedidoController implements IApiUsable
         $pedidoDetalle->idProducto =  $detalle['idProducto'];
         $pedidoDetalle->idPedidoEstado = PedidoEstado::Pendiente;
         $pedidoDetalle->cantidadProducto =  $detalle['cantidadProducto'];
+        $pedidoDetalle->tiempoEstimado =  Producto::find($detalle['idProducto']) != null ? Producto::find($detalle['idProducto'])->tiempoEstimado : null;
         // $pedidoDetalle->tiempoInicio = date('Y-m-d H:i:s', time());
         $pedidoDetalle->save();
       }
@@ -466,11 +468,12 @@ class PedidoController implements IApiUsable
     $pdf->Ln(7);
     $pdf->Cell(0,0,'Fecha:     '. $pedido->fechaAlta,'C');
     $pdf->Ln(7);
-    // 'Costo: $ '. $pedido->importe .$pdf->Ln(10).
-    // 'Codigo del Pedido: '. $pedido->codigo .$pdf->Ln(10).
-    // 'Codigo de Mesa: '. $pedido->Mesa->codigo .$pdf->Ln(10).
-    // 'Nombre del Cliente: '. $pedido->nombreCliente .$pdf->Ln(10).
-    // 'Fecha: '. $pedido->fechaAlta .$pdf->Ln(10);
+    // $texto = '';
+    // $texto .= 'Costo: $ '. $pedido->importe .$pdf->Ln(10).
+    // $texto .= 'Codigo del Pedido: '. $pedido->codigo .$pdf->Ln(10).
+    // $texto .= 'Codigo de Mesa: '. $pedido->Mesa->codigo .$pdf->Ln(10).
+    // $texto .= 'Nombre del Cliente: '. $pedido->nombreCliente .$pdf->Ln(10).
+    // $texto .= 'Fecha: '. $pedido->fechaAlta .$pdf->Ln(10);
   }
 
   public function DescargarReporteMesPDF($request, $response, $args)
@@ -484,11 +487,9 @@ class PedidoController implements IApiUsable
       $pdf = new FPDF();
       $pdf->AddPage();
       $pdf->SetFont('Arial','B', 14);
-      $contenido = '';
-      $contenido .= self::GetPedidoMasCaro($pdf);
-      $pdf->Cell(40,10,$contenido);
+      self::GetPedidoMasCaro($pdf);
 
-      $fileName = 'reporte_' .date('Ymd_his'). '.pdf';
+      $fileName = 'reporte_' .date('Ymd_his_A'). '.pdf';
       $path = $directory . $fileName;
 
       $pdf->Output('F', $path, 'I');

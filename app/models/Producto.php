@@ -27,6 +27,7 @@ class Producto extends Model
         'nombre', 
         'precio', 
         'stock',
+        'tiempoEstimado',
         'fechaAlta', 'fechaModificacion', 'fechaBaja'
     ];
 

@@ -65,11 +65,16 @@ class ProductoController implements IApiUsable
     else if(ProductoTipo::find($data['idProductoTipo']) == null) { throw new Exception("No existe idProductoTipo indicado"); }
 
     if (!isset($data['nombre'])) { throw new Exception("Nombre no seteado"); }
-    if (!isset($data['precio'])) { throw new Exception("Precio no seteado"); }
-    if (!isset($data['stock'])) { throw new Exception("Stock no seteado"); }
+    if (Producto::where('nombre', '=', $data['nombre'])->first() != null) { throw new Exception("El Nombre indicado ya existe en Productos"); }
 
+    if (!isset($data['precio'])) { throw new Exception("Precio no seteado"); }
     if (floatval($data['precio']) < 0) { throw new Exception("Precio indicado debe ser '>' o '=' a 0"); }
+    
+    if (!isset($data['stock'])) { throw new Exception("Stock no seteado"); }
     if (intval($data['stock']) < 0) { throw new Exception("Stock indicado debe ser '>' o '=' a 0"); }
+   
+    if (!isset($data['tiempoEstimado'])) { throw new Exception("Tiempo Estimado no seteado"); }
+    if (intval($data['tiempoEstimado']) < 1) { throw new Exception("Tiempo estimado indicado debe ser '>' o '=' a 1"); }
   }
 
   public function Save($request, $response, $args)
@@ -87,6 +92,7 @@ class ProductoController implements IApiUsable
       $obj->nombre = $data['nombre'];
       $obj->precio = floatval($data['precio']);
       $obj->stock = intval($data['stock']);
+      $obj->tiempoEstimado = intval($data['tiempoEstimado']);
       $obj->save();
       
       $payload = json_encode(
@@ -132,7 +138,10 @@ class ProductoController implements IApiUsable
         $obj->idProductoTipo = $data['idProductoTipo']; 
       }
 
-      if(isset($data['nombre'])) { $obj->nombre = $data['nombre']; }
+      if(isset($data['nombre'])) { 
+        if (Producto::where('nombre', '=', $data['nombre'])->first() != null) { throw new Exception("El Nombre a modificar ya existe"); }
+        $obj->nombre = $data['nombre'];
+      }
 
       if(isset($data['precio'])) { 
         if (floatval($data['precio']) < 0) { throw new Exception("Precio indicado debe ser '>' o '=' a 0"); }
@@ -142,6 +151,11 @@ class ProductoController implements IApiUsable
       if(isset($data['stock'])) { 
         if (intval($data['stock']) < 0) { throw new Exception("Stock indicado debe ser '>' o '=' a 0"); }
         $obj->stock = intval($data['stock']); 
+      }
+
+      if (isset($data['tiempoEstimado'])) { 
+        if (intval($data['tiempoEstimado']) < 1) { throw new Exception("Tiempo estimado indicado debe ser '>' o '=' a 1"); }
+        $obj->tiempoEstimado = intval($data['tiempoEstimado']); 
       }
 
       $obj->save();
@@ -220,6 +234,7 @@ class ProductoController implements IApiUsable
           $obj->nombre = $data[2];
           $obj->precio = (floatval($data[3]) > 0) ? floatval($data[3]) : throw new Exception("Precio en la fila ".$numFila." debe ser '>' o '=' a 0");
           $obj->stock = (intval($data[4]) > 0) ? intval($data[4]) : throw new Exception("Stock en la fila ".$numFila." debe ser '>' o '=' a 0");
+          $obj->tiempoEstimado = (intval($data[5]) > 0) ? intval($data[5]) : throw new Exception("Tiempo Estimado en la fila ".$numFila." debe ser '>' o '=' a 1");
           array_push($list, $obj);
         }
       }
@@ -235,6 +250,7 @@ class ProductoController implements IApiUsable
             $objExistente->nombre = $objNew->nombre;
             $objExistente->precio = floatval($objNew->precio);
             $objExistente->stock = intval($objNew->stock) + intval($objExistente->stock);
+            $objExistente->tiempoEstimado = intval($objNew->tiempoEstimado);
             $objExistente->update();
             $seActualizo = true;
           }

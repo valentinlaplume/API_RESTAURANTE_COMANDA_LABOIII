@@ -192,6 +192,7 @@ CREATE TABLE `producto` (
   `nombre` varchar(150) COLLATE utf8_spanish2_ci NOT NULL,
   `precio` float NOT NULL,
   `stock` int(11) NOT NULL DEFAULT 0,
+  `tiempoEstimado` int(11) NULL DEFAULT NULL,
   `fechaAlta` date NOT NULL,
   `fechaModificacion` date DEFAULT NULL,
   `fechaBaja` date DEFAULT NULL,
@@ -200,15 +201,15 @@ CREATE TABLE `producto` (
   FOREIGN KEY `FK_producto_area` (`idArea`) REFERENCES `area` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_spanish2_ci;
 
-INSERT INTO `producto` (`id`, `idArea`, `idProductoTipo`, `nombre`, `precio`, `stock`, `fechaAlta`) VALUES
-(1, 5, 1, 'Milanesa a caballo', 850.00, 100, '2022-06-12 18::31'),
-(2, 5, 1, 'Hamburguesa de Garbanzo', 750.00, 50, '2022-06-12 18::31'),
-(3, 5, 1, 'Empanada', 150.00, 100, '2022-06-12 18::31'),
-(4, 3, 2, 'Don Valentin 750cc', 1200.00, 50, '2022-06-12 18::31'),
-(5, 4, 2, 'Corona 450cc', 650.00, 50, '2022-06-12 18::31'),
-(6, 3, 2, 'Daikiri', 500.00, 60, '2022-06-12 18::31'),
-(7, 6, 1, 'Flan casero', 350.00, 80, '2022-06-12 18::31'),
-(8, 6, 2, 'Helado Tricolor (chocolate - vainilla - frutilla)', 450.00, 100, '2022-06-12 18::31');
+INSERT INTO `producto` (`id`, `idArea`, `idProductoTipo`, `nombre`, `precio`, `stock`, `tiempoEstimado`, `fechaAlta`) VALUES
+(1, 5, 1, 'Milanesa a caballo', 850.00, 100, 25, '2022-06-12'),
+(2, 5, 1, 'Hamburguesa de Garbanzo', 750.00, 50, 17, '2022-06-12'),
+(3, 5, 1, 'Empanada', 150.00, 100, 7, '2022-06-12'),
+(4, 3, 2, 'Don Valentin 750cc', 1200.00, 50, 5, '2022-06-12'),
+(5, 4, 2, 'Corona 450cc', 650.00, 50, 5, '2022-06-12'),
+(6, 3, 2, 'Daikiri', 500.00, 60, 7, '2022-06-12'),
+(7, 6, 1, 'Flan casero', 350.00, 80, 12, '2022-06-12'),
+(8, 6, 2, 'Helado Tricolor (chocolate - vainilla - frutilla)', 450.00, 100, 10, '2022-06-12');
 
 ALTER TABLE `producto`
   ADD PRIMARY KEY (`id`);
