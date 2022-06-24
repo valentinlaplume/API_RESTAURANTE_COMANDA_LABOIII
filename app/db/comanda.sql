@@ -372,6 +372,31 @@ ALTER TABLE `usuarioAccion`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 COMMIT;
 
+----------------------------------------------------------------------
+DROP TABLE IF EXISTS `pedidoEncuesta`;
+
+CREATE TABLE `pedidoEncuesta` (
+  `id` int(11) NOT NULL,
+  `idMesa` int(11) NOT NULL,
+  `idPedido` int(11) NOT NULL,
+  `puntajeMesa` int(11) NOT NULL,
+  `puntajeRestaurante` int(11) NOT NULL,
+  `puntajeMozo` int(11) NOT NULL,
+  `puntajeCocinero` int(11) NOT NULL,
+  `comentario` varchar(66) COLLATE utf8_spanish2_ci NOT NULL,
+  `fechaAlta` date NOT NULL,
+  `fechaModificacion` date DEFAULT NULL,
+  `fechaBaja` date DEFAULT NULL,
+  FOREIGN KEY `FK_pedidoEncuesta_mesa` (`idMesa`) REFERENCES `mesa` (`id`),
+  FOREIGN KEY `FK_pedidoEncuesta_pedido` (`idPedido`) REFERENCES `pedido` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_spanish2_ci;
+
+ALTER TABLE `pedidoEncuesta`
+  ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `pedidoEncuesta`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+COMMIT;
 
 
 

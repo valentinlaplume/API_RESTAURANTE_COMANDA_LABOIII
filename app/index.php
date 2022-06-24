@@ -159,6 +159,12 @@ $app->group('/descargarReporteMes', function (RouteCollectorProxy $group) {
 
 })->add(\Acceso::class . ':isAdminOSocio');
 
+// ENCUESTA
+$app->group('/encuesta', function (RouteCollectorProxy $group) {
+    $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
+    $group->post('[/]', \PedidoEncuestaController::class . ':Save');
+});
+
 
 $app->run();
 

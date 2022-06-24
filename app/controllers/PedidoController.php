@@ -42,22 +42,39 @@ class PedidoController implements IApiUsable
     try
     {
       $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
-      
-      // Si es Administrador, Socio o Mozo, ve los pedidos Generales
+
+      // Si es Administrador, Socio ve los pedidos Generales
       if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Administrador || 
-          $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Socio || 
-          $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Mozo) {
+      $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Socio) {
 
-          $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+        // if(isset($args['idPedidoEstado']) && is_numeric($args['idPedidoEstado']) && PedidoEstado::find(intval($args['idPedidoEstado']) ) != null)
+        // {
+        //   $listPendientes = Pedido::where('idPedidoEstado', intval($args['idPedidoEstado']))->get();
+        // }else{
+        //   $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+        // }
 
+        $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
+          
+        $payload = json_encode(array(
+        'mensaje' => 'Lista de Pedidos tomados pendientes',
+        "listPendientes" => $listPendientes));
+
+        $response->getBody()->write($payload);
+        return $response->withHeader('Content-Type', 'application/json');
+      }
+
+      if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Mozo) {
+          $listPendientes = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Listo_Para_Servir)->get();
+           
           $payload = json_encode(array(
-          'mensaje' => 'Lista de Pedidos tomados pendientes',
+          'mensaje' => 'Lista de Pedidos listos para servir',
           "listPendientes" => $listPendientes));
 
           $response->getBody()->write($payload);
           return $response->withHeader('Content-Type', 'application/json');
       }
-
+      
       $query =
       'SELECT 
         pD.id as idPedidoDetalle,
@@ -129,17 +146,28 @@ class PedidoController implements IApiUsable
         IFNULL(pD.tiempoEstimado, "No disponible hasta que un empleado tome pedido e indique") as tiempoEstimadoEmpleado,
         IFNULL(pro.tiempoEstimado, "No disponible") as tiempoEstimadoProducto
       FROM PedidoDetalle pD
-      INNER JOIN Pedido p ON p.id = pD.idPedido
-      INNER JOIN Usuario u ON u.id = p.idUsuarioMozo
-      INNER JOIN Producto pro ON pro.id = pD.idProducto
-      INNER JOIN PedidoEstado pE ON pE.id = pD.idPedidoEstado 
-      INNER JOIN Mesa m ON m.id = p.idMesa 
+        INNER JOIN Pedido p ON p.id = pD.idPedido
+        INNER JOIN Usuario u ON u.id = p.idUsuarioMozo
+        INNER JOIN Producto pro ON pro.id = pD.idProducto
+        INNER JOIN PedidoEstado pE ON pE.id = pD.idPedidoEstado 
+        INNER JOIN Mesa m ON m.id = p.idMesa 
       WHERE  p.idMesa = ' . $mesa->id . ' AND p.codigo = ' ."'". $codigoPedido ."'";
 
       $list = DB::select($query);
 
+      // Busco tiempo mas grande
+      $arrTiempos = array();
+      foreach ($list as $obj) {
+        $numProducto = isset($obj) && is_numeric($obj->tiempoEstimadoProducto) ? $obj->tiempoEstimadoProducto : 0;
+        $numEmpleado = isset($obj) && is_numeric($obj->tiempoEstimadoEmpleado) ? $obj->tiempoEstimadoEmpleado : 0;
+        array_push($arrTiempos, $numEmpleado);
+        array_push($arrTiempos, $numProducto);
+      }
+      $tiempoEstimadoMasGrande = max($arrTiempos);
+
       $payload = json_encode(array(
-        'mensaje' => 'Seguimiento de estado de Pedido del Cliente',
+        'mensaje' => 'Seguimiento del estado del Pedido, tiempo estimado: '.$tiempoEstimadoMasGrande.' minutos',
+        'tiempoEstimadoMasGrande' => $tiempoEstimadoMasGrande,
         'PedidoGeneral' => (Pedido::where('codigo', $codigoPedido)->first()),
         "listDetallePedidoGeneral" => $list));
 
@@ -234,43 +262,61 @@ class PedidoController implements IApiUsable
     }
   }
 
+  private function ValidateInputData($data){
+    if($data == null){ throw new Exception("No se encontraron datos de entrada"); }
+
+    if (!isset($data['codigoMesa'])) { throw new Exception("codigoMesa no seteado"); }
+    else if(Mesa::where('codigo','=',$data['codigoMesa'])->first() == null){ throw new Exception("No existe Mesa con el código indicado"); }
+    else{
+      $mesa = Mesa::where('idMesaEstado', MesaEstado::Cerrada)->first(); 
+      if($mesa == null){ throw new Exception('Capacidad llena, no se encuentran Mesas disponibles'); }
+    }
+    
+    if (!isset($data['nombreCliente'])) { throw new Exception("nombreCliente no seteado"); }
+
+    if (!isset($data['listPedidoDetalle'])) { throw new Exception("listPedidoDetalle no seteada"); }
+    else if (!is_array($data['listPedidoDetalle'])) { throw new Exception("listPedidoDetalle debe ser un array"); }
+    else{
+      $listPedidoDetalle = $data['listPedidoDetalle'];
+      foreach ($listPedidoDetalle as $pedidoDetalle) {
+        if (!isset($pedidoDetalle['idProducto'])) { throw new Exception("idProducto de Array listPedidoDetalle no seteado"); }
+        else if(!is_numeric($pedidoDetalle['idProducto']) || intval($pedidoDetalle['idProducto']) < 1) { throw new Exception("idProducto de Array listPedidoDetalle debe ser numérico y mayor a 0"); }
+
+        if (!isset($pedidoDetalle['cantidadProducto'])) { throw new Exception("cantidadProducto de Array listPedidoDetalle no seteado"); }
+        else if(!is_numeric($pedidoDetalle['cantidadProducto']) || intval($pedidoDetalle['cantidadProducto']) < 1) { throw new Exception("cantidadProducto de Array listPedidoDetalle debe ser numérico y mayor a 0"); }
+      }
+    }
+
+  }
+
   public function Save($request, $response, $args)
   {
     try
     {
       $idUsuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request)->id;
-      // ---------------- Junto Data ----------------
       $data = $request->getParsedBody();
 
-      $nombreCliente = isset($data['nombreCliente']) ? $data['nombreCliente'] : null;
-      // ---------------- Modifico estado de mesa ----------------
-      $codigoMesa = isset($data['codigoMesa']) ? $data['codigoMesa'] : null;
-
-      if($codigoMesa == null)
-      { 
-        $mesa = Mesa::where('idMesaEstado', MesaEstado::Cerrada)->first(); 
-        if($mesa == null){ throw new Exception('Capacidad llena, no se encuentran Mesas disponibles.'); }
-      }
-      else{
-        $mesa = Mesa::where('codigo', $codigoMesa)->first();
-        if($mesa == null){ throw new Exception('Mesa no encontrada, verifique código.'); }
-        if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('Mesa ocupada.'); }
-      }
+      self::ValidateInputData($data);
       
+      // ---------------- Verifico si Mesa indicada está disponible ----------------
+      $mesa = Mesa::where('codigo','=',$data['codigoMesa'])->first();
+      if($mesa->idMesaEstado != MesaEstado::Cerrada){ throw new Exception('La Mesa se encuentra ocupada.'); }
+
       $listPedidoDetalle = $data['listPedidoDetalle'];
-      $importeTotal = self::GetImporteTotal($listPedidoDetalle);
+      $importeTotal = self::GetImporteTotal($listPedidoDetalle); // Obtengo importe total del pedido sumando precio c/producto
+
       // ---------------- Save Pedido General ----------------
       $pedido = new Pedido();
       $pedido->codigo = Pedido::GenerarCodigoAlfanumerico();
-      $pedido->idMesa = $mesa->id;
+      $pedido->idMesa = intval($mesa->id);
       $pedido->idPedidoEstado = PedidoEstado::Pendiente; 
-      $pedido->idUsuarioMozo = $idUsuarioLogeado; 
-      if($nombreCliente !== null){ $pedido->nombreCliente = $nombreCliente; } else{ $pedido->nombreCliente = " "; }
+      $pedido->idUsuarioMozo = intval($idUsuarioLogeado); 
+      $pedido->nombreCliente = $data['nombreCliente'];
       $pedido->foto = null;
-      $pedido->importe = $importeTotal;
+      $pedido->importe = floatval($importeTotal);
       $pedido->save();
       
-      // ---------------- Save Detalle de Pedido General ----------------
+      // ---------------- Save Detalle del Pedido General ----------------
       foreach ($listPedidoDetalle as $detalle) 
       {
         $pedidoDetalle = new PedidoDetalle();
@@ -279,19 +325,21 @@ class PedidoController implements IApiUsable
         $pedidoDetalle->idPedidoEstado = PedidoEstado::Pendiente;
         $pedidoDetalle->cantidadProducto =  $detalle['cantidadProducto'];
         $pedidoDetalle->tiempoEstimado =  Producto::find($detalle['idProducto']) != null ? Producto::find($detalle['idProducto'])->tiempoEstimado : null;
-        // $pedidoDetalle->tiempoInicio = date('Y-m-d H:i:s', time());
         $pedidoDetalle->save();
       }
 
+      // ---------------- Modifico estado de mesa una ves creado Pedido ----------------
       $mesa->idMesaEstado = MesaEstado::Cliente_Esperando_Pedido;
       $mesa->save();
 
       $payload = json_encode(
       array(
-      "mensaje" => "Pedido generado con éxito",
+      "codigoMesa" => "El código de su mesa es: ".$mesa->codigo,        
+      "codigoPedido" => "El código de su pedido es: ".$pedido->codigo,        
+      "mensaje" => "Pedido generado con éxito, podrá ver el seguimiento del Pedido en la siguiente sección: .../slim-php-mysql-heroku/app/pedidos/seguimiento/(suCodigoMesa)/(suCodigoPedido)",
       "idUsuario" => $idUsuarioLogeado,
       "idUsuarioAccionTipo" => UsuarioAccionTipo::Alta,
-      "idPedido" => null, 
+      "idPedido" => $pedido->id, 
       "idPedidoDetalle" => null, 
       "idMesa" => null, 
       "idProducto" => null, 
@@ -301,8 +349,7 @@ class PedidoController implements IApiUsable
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
     }
-    catch(Exception $e)
-    {
+    catch(Exception $e){
       $response = $response->withStatus(401);
       $response->getBody()->write(json_encode(array("error" => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
@@ -382,6 +429,7 @@ class PedidoController implements IApiUsable
     {
       $obj = PedidoDetalle::find($args['idPedidoDetalle']);
       if($obj == null) { throw new Exception('Detalle del Pedido no encontrado.'); }
+
       $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
 
       if(Producto::find($obj->idProducto)->idArea != $usuarioLogeado->idArea) 
@@ -390,15 +438,12 @@ class PedidoController implements IApiUsable
       $data = $request->getParsedBody();
       $modificar = false;
 
-
       if (isset($data['idPedidoEstado']) && PedidoEstado::find($data['idPedidoEstado']) != null) { 
         $obj->idPedidoEstado = intval($data['idPedidoEstado']); 
-        if($data['idPedidoEstado'] == PedidoEstado::En_Preparacion) { 
-          $obj->idUsuarioEncargado = 10;//intval($usuarioLogeado->id);
-          $obj->tiempoInicio = date('h:i:s'); 
-        }
-        if($data['idPedidoEstado'] == PedidoEstado::Listo_Para_Servir) { $obj->tiempoFin = date('h:i:s'); }
+        $obj->idUsuarioEncargado = intval($usuarioLogeado->id); // queda el ult empleado en modificar
         $modificar = true;
+        if(intval($data['idPedidoEstado']) == PedidoEstado::En_Preparacion) { $obj->tiempoInicio = date('h:i:s'); }
+        if(intval($data['idPedidoEstado']) == PedidoEstado::Listo_Para_Servir) { $obj->tiempoFin = date('h:i:s'); }
       }
 
       if (isset($data['tiempoEstimado'])) { 
@@ -412,7 +457,7 @@ class PedidoController implements IApiUsable
 
       $payload = json_encode(
       array(
-      "mensaje" => "Detalle del Pedido modificado con éxito",
+      "mensaje" => "Detalle del Pedido General modificado con éxito",
       "idUsuario" => $usuarioLogeado->id,
       "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
       "idPedido" => null, 

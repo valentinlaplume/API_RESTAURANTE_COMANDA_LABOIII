@@ -28,6 +28,21 @@ class PedidoDetalle extends Model
         'fechaAlta', 'fechaModificacion', 'fechaBaja'
     ];
 
+    public function GetMinutosTotalPedido(){
+      if($this->tiempoInicio != null && $this->tiempoFin != null){
+
+        $arrTiempoFin = explode(":", $this->tiempoFin);
+
+        $date = new DateTime($this->tiempoInicio);
+        $date->modify('-'.intval($arrTiempoFin[0]).' hours');
+        $date->modify('+'.intval($arrTiempoFin[1]).' minute');
+        $date->modify('-'.intval($arrTiempoFin[2]).' second');
+
+        return intval($date->format('i:s'));
+      }
+      return -1;
+    }
+
     public function Pedido()
     {
       return $this->belongsTo(Pedido::class, 'idPedido'); 

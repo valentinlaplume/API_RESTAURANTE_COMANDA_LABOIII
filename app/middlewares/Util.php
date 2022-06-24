@@ -21,33 +21,20 @@ class Util
     public static function RegistrarAccionUsuario(Request $request, RequestHandler $handler)
     {
         $response = $handler->handle($request);
-        
         $body = json_decode($response->getBody());
 
         if(isset($body->idUsuario) && isset($body->idUsuarioAccionTipo) &&
-        $body->idUsuario > 0 && $body->idUsuarioAccionTipo > 0)
+        intval($body->idUsuario) > 0 && intval($body->idUsuarioAccionTipo) > 0)
         {
             $registro = new UsuarioAccion();
             $registro->idUsuario = $body->idUsuario;
             $registro->idUsuarioAccionTipo = $body->idUsuarioAccionTipo; 
-
             $registro->idPedido = $body->idPedido; 
-
             $registro->idMesa = $body->idMesa; 
             $registro->idProducto = $body->idProducto; 
             $registro->idArea = $body->idArea;
-            
             $registro->hora = $body->hora; 
-
             $registro->idPedidoDetalle = $body->idPedidoDetalle;
-            // if($body->PedidoDetalle != null && $body->PedidoDetalle.count() > 0){
-            //     foreach ($body->PedidoDetalle as $idPedidoDetalle) {
-            //         $registro->idPedidoDetalle = $idPedidoDetalle;
-            //         $registro->save();
-            //     } 
-            // }else{
-            //     $registro->save();
-            // }
             $registro->save();
         }
 
