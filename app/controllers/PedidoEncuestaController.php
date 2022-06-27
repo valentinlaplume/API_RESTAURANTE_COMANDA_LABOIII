@@ -2,6 +2,7 @@
 date_default_timezone_set("America/Buenos_Aires");
 require_once './interfaces/IApiUsable.php';
 require_once './middlewares/AutentificadorJWT.php';
+require_once './models/PedidoEncuesta.php';
 require_once './models/Pedido.php';
 require_once './models/PedidoEstado.php';
 require_once './models/PedidoDetalle.php';
@@ -12,7 +13,7 @@ require_once './models/UsuarioTipo.php';
 require_once './models/UsuarioAccion.php';
 require_once './models/UsuarioAccionTipo.php';
 require_once './models/ManejadorArchivos.php';
-require ('./fpdf/fpdf.php');
+use \App\Models\PedidoEncuesta as PedidoEncuesta;
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
 use \App\Models\PedidoDetalle as PedidoDetalle;
@@ -27,6 +28,32 @@ use Illuminate\Database\Capsule\Manager as DB;
 
 class PedidoEncuestaController 
 {
+  
+  public function GetAllPorEncimaPuntaje($request, $response, $args)
+  {
+    try{
+      if(!isset($args['puntaje'])) { throw new Exception('Argumento puntaje no seteado.'); }
+      if(!is_numeric($args['puntaje'])) { throw new Exception('puntaje debe ser numerico.'); }
+      $lista = PedidoEncuesta::all()
+      ->where('puntajeMesa','>',$args['puntaje'])
+      ->where('puntajeRestaurante','>',$args['puntaje'])
+      ->where('puntajeMozo','>',$args['puntaje'])
+      ->where('puntajeCocinero','>',$args['puntaje']);
+      
+      $payload = json_encode(array(
+      "mensaje" => "Lista de Encuestas con puntaje mayor a ".$args['puntaje'],  
+      "listaPedidoEncuesta" => $lista));
+      
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch(Exception $ex){
+      $response = $response->withStatus(401);
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
   public function GetAll($request, $response, $args)
   {
     $lista = PedidoEncuesta::all();
@@ -80,6 +107,14 @@ class PedidoEncuestaController
     try
     {
       $data = $request->getParsedBody();
+
+      // 'idMesa', 
+      // 'idPedido', 
+      // 'puntajeMesa', 
+      // 'puntajeRestaurante',
+      // 'puntajeMozo', 
+      // 'puntajeCocinero', 
+      // 'comentario', 
 
       self::ValidateInputData($data);
 

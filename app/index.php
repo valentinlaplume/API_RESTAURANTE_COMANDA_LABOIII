@@ -20,6 +20,7 @@ require_once './controllers/MesaController.php';
 require_once './controllers/MesaEstadoController.php';
 require_once './controllers/ProductoController.php';
 require_once './controllers/PedidoController.php';
+require_once './controllers/PedidoEncuestaController.php';
 require_once './controllers/LoginController.php';
 
 date_default_timezone_set('America/Argentina/Buenos_Aires');
@@ -102,6 +103,12 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     $group->get('/{field}/{value}', \MesaController::class . ':GetAllBy'); 
     $group->get('/first/{field}/{value}', \MesaController::class . ':GetFirstBy'); 
     
+    // Todas las mesas con sus estados
+    $group->get('/estados', \MesaController::class . ':GetAllConEstados')->add(\Acceso::class . ':isAdminOSocio');;
+    
+    // Más usada
+    $group->post('/masUsada', \MesaController::class . ':GetMasUsada')->add(\Acceso::class . ':isAdminOSocio');;
+    
     //ABM
     $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isMozo');
     $group->put('/{id}', \MesaController::class . ':Update')->add(\Acceso::class . ':isMozo');
@@ -161,7 +168,9 @@ $app->group('/descargarReporteMes', function (RouteCollectorProxy $group) {
 
 // ENCUESTA
 $app->group('/encuesta', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
+    $group->get('/puntaje/{puntaje}', \PedidoEncuestaController::class . ':GetAllPorEncimaPuntaje')->add(\Acceso::class . ':isAdminOSocio');
+
+    // $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
     $group->post('[/]', \PedidoEncuestaController::class . ':Save');
 });
 

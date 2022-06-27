@@ -14,10 +14,10 @@ class Acceso
 {
     public function isAdmin($request, $handler)
     {
+        $response = new Response();
         try
         {
             $header = $request->getHeaderLine('Authorization');
-            $response = new Response();
             
             if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
             $token = trim(explode("Bearer", $header)[1]);
@@ -44,10 +44,10 @@ class Acceso
 
     public function isAdminOSocio($request, $handler)
     {
+        $response = new Response();
         try
         {
             $header = $request->getHeaderLine('Authorization');
-            $response = new Response();
             
             if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
             $token = trim(explode("Bearer", $header)[1]);
@@ -75,10 +75,10 @@ class Acceso
 
     public function isMozo($request, $handler)
     {
+        $response = new Response();
         try
         {
             $header = $request->getHeaderLine('Authorization');
-            $response = new Response();
             
             if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
             $token = trim(explode("Bearer", $header)[1]);
@@ -107,10 +107,10 @@ class Acceso
 
     public function isCocinero($request, $handler)
     {
+        $response = new Response();
         try
         {
             $header = $request->getHeaderLine('Authorization');
-            $response = new Response();
             
             if(empty($header)) { throw new Exception('Es necesario Token para acceso'); }
             $token = trim(explode("Bearer", $header)[1]);
@@ -139,6 +139,7 @@ class Acceso
 
     public function isUsuario($request, $handler)
     {
+        $response = new Response();
         try
         {
             $header = $request->getHeaderLine('Authorization');
@@ -148,7 +149,6 @@ class Acceso
             AutentificadorJWT::VerificarToken($token);
             $data = AutentificadorJWT::ObtenerData($token);
             
-            $response = new Response();
 
             self::ValidarDataToken($data);
             

@@ -30,6 +30,11 @@ class Mesa extends Model
         return $this->belongsTo(MesaEstado::class, 'idMesaEstado');
     }
 
+    public function ListPedido()
+    {
+        return $this->hasMany(Pedido::class, 'idMesa');
+    }
+
     static public function GenerarCodigoAlfanumerico($strength = 5)
     {
       $permitted_chars = '0123456789abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

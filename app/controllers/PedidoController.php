@@ -3,6 +3,7 @@ date_default_timezone_set("America/Buenos_Aires");
 require_once './interfaces/IApiUsable.php';
 require_once './middlewares/AutentificadorJWT.php';
 
+require_once './models/Area.php';
 require_once './models/Pedido.php';
 require_once './models/PedidoEstado.php';
 require_once './models/PedidoDetalle.php';
@@ -20,6 +21,7 @@ require ('./fpdf/fpdf.php');
 
 
 
+use \App\Models\Area as Area;
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
 use \App\Models\PedidoDetalle as PedidoDetalle;
@@ -44,15 +46,8 @@ class PedidoController implements IApiUsable
       $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
 
       // Si es Administrador, Socio ve los pedidos Generales
-      if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Administrador || 
-      $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Socio) {
-
-        // if(isset($args['idPedidoEstado']) && is_numeric($args['idPedidoEstado']) && PedidoEstado::find(intval($args['idPedidoEstado']) ) != null)
-        // {
-        //   $listPendientes = Pedido::where('idPedidoEstado', intval($args['idPedidoEstado']))->get();
-        // }else{
-        //   $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
-        // }
+      if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Administrador 
+      || $usuarioLogeado->idUsuarioTipo == UsuarioTipo::Socio) {
 
         $listPendientes = Pedido::where('idPedidoEstado', PedidoEstado::Pendiente)->get();
           
@@ -65,11 +60,11 @@ class PedidoController implements IApiUsable
       }
 
       if ($usuarioLogeado->idUsuarioTipo == UsuarioTipo::Mozo) {
-          $listPendientes = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Listo_Para_Servir)->get();
+          $listosParaServir = PedidoDetalle::where('idPedidoEstado', PedidoEstado::Listo_Para_Servir)->get();
            
           $payload = json_encode(array(
-          'mensaje' => 'Lista de Pedidos listos para servir',
-          "listPendientes" => $listPendientes));
+          'mensaje' => 'Lista de Platos listos para servir',
+          "listosParaServir" => $listosParaServir));
 
           $response->getBody()->write($payload);
           return $response->withHeader('Content-Type', 'application/json');
@@ -99,19 +94,18 @@ class PedidoController implements IApiUsable
       INNER JOIN Area a ON a.id = pro.idArea
       INNER JOIN Mesa m ON m.id = p.idMesa 
       WHERE a.id = ' . $usuarioLogeado->idArea .
-      ' AND pE.id <> '. PedidoEstado::Listo_Para_Servir .
-      ' AND pE.id <>' . PedidoEstado::Cancelado . 
-      ' AND pE.id <> '. PedidoEstado::Servido;
+      ' AND ( pE.id = '. PedidoEstado::Pendiente .' OR pE.id =' . PedidoEstado::En_Preparacion . ')';
 
       $list = DB::select($query);
 
       $payload = json_encode(array(
-      'mensaje' => 'Lista de Pedidos Pendientes o en Preparación por Area del Usuario Logeado',
-      "listPedidosPendientes" => $list));
+      'mensaje' => 'Lista de Platos Pendientes o en Preparación por Area del Usuario',
+      "listPedidos" => $list));
   
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');
-    }catch(Exception $e){
+    }
+    catch(Exception $e){
       $response = $response->withStatus(401);
       $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
       return $response->withHeader('Content-Type', 'application/json');
@@ -397,7 +391,7 @@ class PedidoController implements IApiUsable
       if (isset($data['idPedidoEstado']) && PedidoEstado::find($data['idPedidoEstado']) != null) { $obj->idPedidoEstado = intval($data['idPedidoEstado']); $modificar = true; }
       if (isset($data['nombreCliente']) != null) { $obj->nombreCliente = $data['nombreCliente']; $modificar = true; }
       
-      if(!$modificar){ throw new Exception('El Pedido no fue modificado, verifique de indicar campos válidos'); }
+      if(!$modificar){ throw new Exception('El Pedido no fue modificado, verifique de indicar campos y valores seteados válidos.'); }
       
       $obj->save();
 
@@ -432,18 +426,25 @@ class PedidoController implements IApiUsable
 
       $usuarioLogeado = AutentificadorJWT::GetUsuarioLogeado($request);
 
-      if(Producto::find($obj->idProducto)->idArea != $usuarioLogeado->idArea) 
-      { throw new Exception('No tienes acceso a modificar Detalle del Pedido, pertenece al Area de '. Producto::find($obj->idProducto)->Area->descripcion); }
+      if(!(Producto::find($obj->idProducto)->idArea == $usuarioLogeado->idArea 
+      || $usuarioLogeado->idArea == Area::Salon // Mozo
+      || $usuarioLogeado->idArea == Area::Administracion)) // Socio, Administrador/Dueño
+      { 
+        throw new Exception('No tienes acceso a modificar Detalle del Pedido, pertenece al Area de '. Producto::find($obj->idProducto)->Area->descripcion); 
+      }
 
       $data = $request->getParsedBody();
       $modificar = false;
 
+      $mensajeAccion = "Plato del Pedido General modificado con éxito";
       if (isset($data['idPedidoEstado']) && PedidoEstado::find($data['idPedidoEstado']) != null) { 
         $obj->idPedidoEstado = intval($data['idPedidoEstado']); 
         $obj->idUsuarioEncargado = intval($usuarioLogeado->id); // queda el ult empleado en modificar
         $modificar = true;
         if(intval($data['idPedidoEstado']) == PedidoEstado::En_Preparacion) { $obj->tiempoInicio = date('h:i:s'); }
         if(intval($data['idPedidoEstado']) == PedidoEstado::Listo_Para_Servir) { $obj->tiempoFin = date('h:i:s'); }
+      
+        $mensajeAccion = 'Estado del Plato modificado a: '.PedidoEstado::find($data['idPedidoEstado'])->estado;
       }
 
       if (isset($data['tiempoEstimado'])) { 
@@ -457,7 +458,7 @@ class PedidoController implements IApiUsable
 
       $payload = json_encode(
       array(
-      "mensaje" => "Detalle del Pedido General modificado con éxito",
+      "mensaje" => $mensajeAccion,
       "idUsuario" => $usuarioLogeado->id,
       "idUsuarioAccionTipo" => UsuarioAccionTipo::Modificacion,
       "idPedido" => null, 

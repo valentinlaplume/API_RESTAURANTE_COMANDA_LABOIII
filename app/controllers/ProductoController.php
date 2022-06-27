@@ -225,17 +225,19 @@ class ProductoController implements IApiUsable
       {
         $numFila++;
         $line = fgets($file);
-        if (!empty($line))
+        if (!empty($line) && strlen($line) > 5)
         {
           $data = explode(',', $line);
-          $obj = new Producto();
-          $obj->idArea = (Area::find($data[0]) != null) ? $data[0] : throw new Exception("No existe idArea indicada en la fila ".$numFila);
-          $obj->idProductoTipo = (ProductoTipo::find($data[1]) != null) ? $data[1] : throw new Exception("No existe idProductoTipo indicado en la fila ".$numFila);
-          $obj->nombre = $data[2];
-          $obj->precio = (floatval($data[3]) > 0) ? floatval($data[3]) : throw new Exception("Precio en la fila ".$numFila." debe ser '>' o '=' a 0");
-          $obj->stock = (intval($data[4]) > 0) ? intval($data[4]) : throw new Exception("Stock en la fila ".$numFila." debe ser '>' o '=' a 0");
-          $obj->tiempoEstimado = (intval($data[5]) > 0) ? intval($data[5]) : throw new Exception("Tiempo Estimado en la fila ".$numFila." debe ser '>' o '=' a 1");
-          array_push($list, $obj);
+          if(!empty($data)){
+            $obj = new Producto();
+            $obj->idArea = (Area::find($data[0]) != null) ? $data[0] : throw new Exception("No existe idArea indicada en la fila ".$numFila);
+            $obj->idProductoTipo = (ProductoTipo::find($data[1]) != null) ? $data[1] : throw new Exception("No existe idProductoTipo indicado en la fila ".$numFila);
+            $obj->nombre = $data[2];
+            $obj->precio = (floatval($data[3]) > 0) ? floatval($data[3]) : throw new Exception("Precio en la fila ".$numFila." debe ser '>' o '=' a 0");
+            $obj->stock = (intval($data[4]) > 0) ? intval($data[4]) : throw new Exception("Stock en la fila ".$numFila." debe ser '>' o '=' a 0");
+            $obj->tiempoEstimado = (intval($data[5]) > 0) ? intval($data[5]) : throw new Exception("Tiempo Estimado en la fila ".$numFila." debe ser '>' o '=' a 1");
+            array_push($list, $obj);
+          }
         }
       }
       $seActualizo = false;
@@ -260,13 +262,10 @@ class ProductoController implements IApiUsable
       return $list;
     } 
     catch(Exception $e){
-      $response = $response->withStatus(401);
-      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
-      return $response->withHeader('Content-Type', 'application/json');
+      throw $e;
     }
     finally{
       fclose($file);
-      return $list;
     }
   }
 
@@ -283,7 +282,7 @@ class ProductoController implements IApiUsable
       $r = move_uploaded_file($_FILES["productosCSV"]["tmp_name"], $destino);
       if($r){
         $list = self::LeerCsvInterno($destino);
-        if(count($list) > 0){
+        if(is_array($list) && count($list) > 0){
           $payload = json_encode(
           array(
             "mensaje" => "Carga de Productos vía archivo CSV con éxito",
@@ -296,6 +295,12 @@ class ProductoController implements IApiUsable
             "idArea" => null,
             "hora" => date('h:i:s'))
           );
+        }else{
+          $payload = json_encode(
+            array(
+              "mensaje" => "No fue posible obtener lista convertida",
+              "hora" => date('h:i:s'))
+            );
         }
       }
 

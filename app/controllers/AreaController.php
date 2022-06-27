@@ -56,7 +56,7 @@ class AreaController implements IApiUsable
     $usr->descripcion = $descripcion;
     $usr->save();
     
-    $payload = json_encode(array("mensaje" => "Area creado con exito"));
+    $payload = json_encode(array("mensaje" => "Area creada con exito"));
     
     $response->getBody()->write($payload);
     return $response
