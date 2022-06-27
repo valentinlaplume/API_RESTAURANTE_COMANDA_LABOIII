@@ -37,6 +37,58 @@ use Illuminate\Database\Capsule\Manager as DB;
 
 class ReporteController
 {
+  static public function DiferenciaMinutosPedidos($data)
+  {
+    $lista = [];
+      
+    $condicionFechas = '';
+    if(isset($data['fechaDesde']) && isset($data['fechaHasta']))
+    {
+      $desde = $data['fechaDesde'];
+      $hasta = $data['fechaHasta'];
+      
+      $condicionFechas = ' AND (pD.fechaAlta >= "' .$desde. '")'. ' AND (pD.fechaAlta <= "'.$hasta. '")';
+    }
+  
+    $query = 'SELECT 
+    TIMEDIFF(pD.tiempoFin,pD.tiempoInicio) as diferenciaMinutos,
+    pD.tiempoEstimado,
+    p.codigo as codigoPedidoGeneral
+    from pedidoDetalle pD
+    INNER JOIN Pedido p ON p.id = pD.idPedido
+    INNER JOIN Producto pro ON pro.id = pD.idProducto'. 
+    $condicionFechas . ' AND TIMEDIFF(pD.tiempoFin,pD.tiempoInicio) > pD.tiempoEstimado';
+
+    return DB::select($query);
+  }
+
+  static public function AgregarDiferenciaMinutosPedidos($pdf, $data)
+  {
+    try
+    {
+      $lista = self::DiferenciaMinutosPedidos($data);
+
+      if(count($lista) > 0){
+        $pdf->Cell(20,10,'---------------- Pedidos que se pasaron del tiempo estimado ----------------','C');
+        $pdf->SetFont('Arial','B', 10);
+        foreach ($lista as  $value) {
+          $pdf->Ln(13);
+          $pdf->Cell(0,0,'Codigo Pedido General:     '. $value->codigoPedidoGeneral,'C');
+          $pdf->Ln(7);
+          $pdf->Cell(0,0,'Diferencia Minutos:      '. $value->diferenciaMinutos,'C');
+          $pdf->Ln(7);
+          $pdf->Cell(0,0,'Tiempo Estimado:     '. $value->tiempoEstimado,'C');
+          $pdf->Ln(7);
+        }
+      }
+      
+      return $lista == null ? [] : $lista;
+    }
+    catch(Exception $ex){
+      throw $ex;
+    }
+  }
+
   static public function ProductoMenosVendido($data)
   {
     $lista = [];
@@ -156,9 +208,11 @@ class ReporteController
   }
   static public function GetPedidoMasBarato($pdf, $data)
   {
-    $max = Pedido::all()->min('importe');
+    $min = Pedido::all()
+    ->where('idPedidoEstado','=', PedidoEstado::Cobrado)
+    ->min('importe');
     
-    $pedido = Pedido::where('importe','=', $max)->first();
+    $pedido = Pedido::where('importe','=', $min)->first();
     if(isset($data['fechaDesde']) && isset($data['fechaHasta']))
     {
       $desde = $data['fechaDesde'];
@@ -167,10 +221,10 @@ class ReporteController
       $pedido = Pedido::all()
       ->where('fechaAlta','>=', $desde)
       ->where('fechaHasta','<=', $desde)
-      ->where('importe','=', $max)->first();
+      ->where('importe','=', $min)->first();
     }
 
-    $pdf->Cell(20,10,'---------------- PEDIDO MAS BARATO ----------------','C');
+    $pdf->Cell(20,10,'---------------- FACTURA MENOR IMPORTE ----------------','C');
     $pdf->SetFont('Arial','B', 10);
     $pdf->Ln(13);
     $pdf->Cell(0,0,'Costo:      $'. $pedido->importe,'C');
@@ -186,7 +240,9 @@ class ReporteController
   }
   static public function GetPedidoMasCaro($pdf, $data)
   {
-    $max = Pedido::all()->max('importe');
+    $max = Pedido::all()
+    ->where('idPedidoEstado','=', PedidoEstado::Cobrado)
+    ->max('importe');
     
     $pedido = Pedido::where('importe','=', $max)->first();
     if(isset($data['fechaDesde']) && isset($data['fechaHasta']))
@@ -200,7 +256,7 @@ class ReporteController
       ->where('importe','=', $max)->first();
     }
 
-    $pdf->Cell(20,10,'---------------- PEDIDO MAS CARO ----------------','C');
+    $pdf->Cell(20,10,'---------------- FACTURA MAYOR IMPORTE ----------------','C');
     $pdf->SetFont('Arial','B', 10);
     $pdf->Ln(13);
     $pdf->Cell(0,0,'Costo:      $'. $pedido->importe,'C');
@@ -284,6 +340,8 @@ class ReporteController
       if(isset($data['fechaDesde']) && isset($data['fechaHasta'])){
         $mensaje = 
         "Reporte entre fechaDesde " .$data['fechaDesde']." y fechaHasta ".$data['fechaHasta']. " descargado con éxito.";
+        $pdf->Cell(20,10,"Reporte entre Fecha Desde " .$data['fechaDesde']." y Fecha Hasta ".$data['fechaHasta'],'C');
+        $pdf->Ln(13);
       }
       
       self::TotalVendido($pdf, $data);
@@ -292,6 +350,7 @@ class ReporteController
       self::GetPedidoMasCaro($pdf, $data);
       self::GetPedidoMasBarato($pdf, $data);
       self::AgregarPedidosCancelados($pdf, $data);
+      self::AgregarDiferenciaMinutosPedidos($pdf, $data);
 
       $fileName = 'reporte_' .date('Ymd_his_A'). '.pdf';
       $path = $directory . $fileName;

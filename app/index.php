@@ -170,9 +170,9 @@ $app->group('/reportes', function (RouteCollectorProxy $group) {
 
 // ENCUESTA
 $app->group('/encuesta', function (RouteCollectorProxy $group) {
-    $group->get('/puntaje/{puntaje}', \PedidoEncuestaController::class . ':GetAllPorEncimaPuntaje')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/puntajeSuperior/{puntaje}', \PedidoEncuestaController::class . ':GetAllPorEncimaPuntaje')->add(\Acceso::class . ':isAdminOSocio');
+    $group->get('/puntajeInferior/{puntaje}', \PedidoEncuestaController::class . ':GetAllPorDebajoPuntaje')->add(\Acceso::class . ':isAdminOSocio');
 
-    // $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
     $group->post('[/]', \PedidoEncuestaController::class . ':Save');
 });
 
