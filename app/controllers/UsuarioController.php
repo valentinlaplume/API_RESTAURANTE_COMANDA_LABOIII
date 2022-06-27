@@ -27,13 +27,11 @@ class UsuarioController implements IApiUsable
       $query =
       'SELECT 
         a.descripcion AS area,
-        ut.tipo AS tipoUsuarioArea,
         COUNT( u.idArea ) AS cantidadAcciones
       FROM Usuario u
       INNER JOIN UsuarioAccion ua ON u.id = ua.idUsuario
-      INNER JOIN UsuarioTipo ut ON u.idUsuarioTipo = ut.id
       INNER JOIN Area a ON u.idArea = a.id
-        GROUP BY ua.idUsuario
+        GROUP BY u.idArea
         ORDER BY cantidadAcciones DESC';
 
       $lista = DB::select($query);

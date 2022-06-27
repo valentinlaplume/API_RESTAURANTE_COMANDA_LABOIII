@@ -17,10 +17,6 @@ require_once './models/UsuarioAccion.php';
 require_once './models/UsuarioAccionTipo.php';
 require_once './models/ManejadorArchivos.php';
 
-require ('./fpdf/fpdf.php');
-
-
-
 use \App\Models\Area as Area;
 use \App\Models\Pedido as Pedido;
 use \App\Models\PedidoEstado as PedidoEstado;
@@ -37,7 +33,7 @@ use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 use Slim\Psr7\Response;
 use Illuminate\Database\Capsule\Manager as DB;
 
-class PedidoController implements IApiUsable
+class PedidoController
 {
   public function GetAllBandejaPedidosPendientes($request, $response, $args)
   {
@@ -496,64 +492,4 @@ class PedidoController implements IApiUsable
       ->withHeader('Content-Type', 'application/json');
   }
 
-  static private function GetPedidoMasCaro($pdf)
-  {
-    $max = Pedido::all()->max('importe');
-    $pedido = Pedido::where('importe','=', $max)->first();
-
-    $pdf->Cell(20,10,'---------------- PEDIDO MAS CARO ----------------','C');
-    $pdf->SetFont('Arial','B', 10);
-    $pdf->Ln(13);
-    $pdf->Cell(0,0,'Costo:      $'. $pedido->importe,'C');
-    $pdf->Ln(7);
-    $pdf->Cell(0,0,'Codigo del Pedido:     '. $pedido->codigo,'C');
-    $pdf->Ln(7);
-    $pdf->Cell(0,0,'Codigo de Mesa:     '. $pedido->Mesa->codigo,'C');
-    $pdf->Ln(7);
-    $pdf->Cell(0,0,'Nombre del Cliente:    '. $pedido->nombreCliente,'C');
-    $pdf->Ln(7);
-    $pdf->Cell(0,0,'Fecha:     '. $pedido->fechaAlta,'C');
-    $pdf->Ln(7);
-    // $texto = '';
-    // $texto .= 'Costo: $ '. $pedido->importe .$pdf->Ln(10).
-    // $texto .= 'Codigo del Pedido: '. $pedido->codigo .$pdf->Ln(10).
-    // $texto .= 'Codigo de Mesa: '. $pedido->Mesa->codigo .$pdf->Ln(10).
-    // $texto .= 'Nombre del Cliente: '. $pedido->nombreCliente .$pdf->Ln(10).
-    // $texto .= 'Fecha: '. $pedido->fechaAlta .$pdf->Ln(10);
-  }
-
-  public function DescargarReporteMesPDF($request, $response, $args)
-  {
-    try
-    {
-      // C:\xampp\htdocs\slim-php-mysql-heroku\app\fpdf\fpdf.php
-      $directory = './reportes/';
-      if (!file_exists($directory)) { mkdir($directory, 0777, true); }
-
-      $pdf = new FPDF();
-      $pdf->AddPage();
-      $pdf->SetFont('Arial','B', 14);
-      self::GetPedidoMasCaro($pdf);
-
-      $fileName = 'reporte_' .date('Ymd_his_A'). '.pdf';
-      $path = $directory . $fileName;
-
-      $pdf->Output('F', $path, 'I');
-
-      $payload = json_encode(array(
-        "mensaje" => "Reporte del mes descargado con éxito",
-        "rutaReporteDescargado" => $path
-      ));
-  
-      $response->getBody()->write($payload);
-      return $response->withHeader('Content-Type', 'application/json');
-    }
-    catch(Exception $e){
-      $response = $response->withStatus(401);
-      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
-      return $response->withHeader('Content-Type', 'application/json');
-    }
-  }
-
- 
 }

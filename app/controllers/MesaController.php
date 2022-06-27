@@ -17,7 +17,7 @@ use \App\Models\UsuarioAccionTipo as UsuarioAccionTipo;
 use Illuminate\Database\Capsule\Manager as DB;
 class MesaController implements IApiUsable
 {
-  public function TraerMesaMasUsada($data)
+  static public function TraerMesaMasUsada($data)
   {
     try
     {
@@ -44,7 +44,7 @@ class MesaController implements IApiUsable
       INNER JOIN Pedido p ON p.idMesa = m.id'. $condicionFechas . '
       GROUP BY m.id
       ORDER BY cantidadUsada DESC';
-      
+
       $lista = DB::select($query);
       
       return $lista == null ? [] : $lista;
@@ -60,10 +60,68 @@ class MesaController implements IApiUsable
     {
       $data = $request->getParsedBody();
       $lista = self::TraerMesaMasUsada($data);
-
+      $mesa = count($lista) > 0 && $lista[0] != null ? $lista[0] : [];
       $payload = json_encode(array(
         'mensaje' => 'Mesa mas usada',
-        "listAccionesArea" => $lista[0]));
+        "mesa" => $mesa));
+
+      $response->getBody()->write($payload);
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+    catch (Exception $e) {
+      $response = $response->withStatus(401);
+      $response->getBody()->write(json_encode(array('error' => $e->getMessage())));
+      return $response->withHeader('Content-Type', 'application/json');
+    }
+  }
+
+  static public function TraerMesaMenosUsada($data)
+  {
+    try
+    {
+      $lista = [];
+      
+      $condicionFechas = '';
+      if(isset($data['fechaDesde']) && isset($data['fechaHasta']))
+      {
+        $desde = $data['fechaDesde'];
+        $hasta = $data['fechaHasta'];
+        
+        $condicionFechas = ' AND (p.fechaAlta >= "' .$desde. '")'. ' AND (p.fechaAlta <= "'.$hasta. '")';
+      }
+    
+      $query =
+      'SELECT 
+      m.id as idMesa,
+      m.idMesaEstado as idMesaEstado,
+      m.codigo as codigoMesa,
+      m.descripcion as descripcion,
+      m.fechaAlta as fechaAlta,
+      COUNT( m.id ) AS cantidadUsada
+      FROM mesa m
+      INNER JOIN Pedido p ON p.idMesa = m.id'. $condicionFechas . '
+      GROUP BY m.id
+      ORDER BY cantidadUsada ASC';
+
+      $lista = DB::select($query);
+      
+      return $lista == null ? [] : $lista;
+    }
+    catch(Exception $ex){
+      throw $ex;
+    }
+  }
+
+  public function GetMenosUsada($request, $response, $args)
+  {
+    try
+    {
+      $data = $request->getParsedBody();
+      $lista = self::TraerMesaMenosUsada($data);
+      $mesa = count($lista) > 0 && $lista[0] != null ? $lista[0] : [];
+      $payload = json_encode(array(
+        'mensaje' => 'Mesa Menos usada',
+        "mesa" => $mesa));
 
       $response->getBody()->write($payload);
       return $response->withHeader('Content-Type', 'application/json');

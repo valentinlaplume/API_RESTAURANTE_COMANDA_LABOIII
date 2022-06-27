@@ -313,4 +313,6 @@ class ProductoController implements IApiUsable
       return $response->withHeader('Content-Type', 'application/json');
     }
   }
+
+
 }

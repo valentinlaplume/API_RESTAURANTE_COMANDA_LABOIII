@@ -22,6 +22,7 @@ require_once './controllers/ProductoController.php';
 require_once './controllers/PedidoController.php';
 require_once './controllers/PedidoEncuestaController.php';
 require_once './controllers/LoginController.php';
+require_once './controllers/ReporteController.php';
 
 date_default_timezone_set('America/Argentina/Buenos_Aires');
 
@@ -108,6 +109,7 @@ $app->group('/mesas', function (RouteCollectorProxy $group) {
     
     // Más usada
     $group->post('/masUsada', \MesaController::class . ':GetMasUsada')->add(\Acceso::class . ':isAdminOSocio');;
+    $group->post('/menosUsada', \MesaController::class . ':GetMenosUsada')->add(\Acceso::class . ':isAdminOSocio');;
     
     //ABM
     $group->post('[/]', \MesaController::class . ':Save')->add(\Acceso::class . ':isMozo');
@@ -161,8 +163,8 @@ $app->group('/pedidos', function (RouteCollectorProxy $group) {
 })->add(\Util::class . ':RegistrarAccionUsuario');
 
 // REPORTE
-$app->group('/descargarReporteMes', function (RouteCollectorProxy $group) {
-    $group->get('[/]', \PedidoController::class . ':DescargarReporteMesPDF');
+$app->group('/reportes', function (RouteCollectorProxy $group) {
+    $group->post('/pedidos', \ReporteController::class . ':DescargarReportePedido');
 
 })->add(\Acceso::class . ':isAdminOSocio');
 
